@@ -1,6 +1,7 @@
 import { CategoryChart, type ChartSegment } from '@/components/category-chart';
 import { HomeFilters } from '@/components/home-filters';
 import { accounts, categories, demoEntries, formatAmount, type EntryType } from '@/data/home-demo';
+import { useLanguage } from '@/hooks/use-language';
 import { DrawerToggleButton } from 'expo-router/drawer';
 import { useState } from 'react';
 import { Alert, FlatList, Image, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
@@ -17,6 +18,7 @@ function AccountIcon({ iconKey, color }: { iconKey: 'cash' | 'card'; color: stri
 }
 
 export default function HomeScreen() {
+  const { translations, locale } = useLanguage();
   const [type, setType] = useState<EntryType>('EXPENSE');
   const [period, setPeriod] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [accountIds, setAccountIds] = useState<string[]>([]);
@@ -28,7 +30,10 @@ export default function HomeScreen() {
     : { background: '#F5F6F9', card: '#FFFFFF', text: '#192238', muted: '#6C7890', line: '#E0E5EE', accent: '#365BBC', icon: '#EAF0FC' };
 
   const monthKey = `${period.getFullYear()}-${String(period.getMonth() + 1).padStart(2, '0')}`;
-  const monthLabel = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(period);
+  const monthLabel = new Intl.DateTimeFormat(locale, {
+    month: 'long',
+    year: 'numeric',
+  }).format(period);
   const entries = demoEntries.filter((entry) => entry.type === type && entry.month === monthKey
     && (accountIds.length === 0 || accountIds.includes(entry.accountId))
     && (categoryIds.length === 0 || categoryIds.includes(entry.categoryId)));
@@ -60,7 +65,9 @@ export default function HomeScreen() {
           accessibilityRole="tab" accessibilityState={{ selected: type === value }} onPress={() => { setType(value); setCategoryIds([]); }}
           style={[styles.tab, { borderBottomColor: type === value ? palette.accent : 'transparent' }]}>
           <Text style={[styles.tabText, { color: type === value ? palette.accent : palette.muted }]}>
-            {value === 'EXPENSE' ? 'Расходы' : 'Доходы'}
+            {value === 'EXPENSE'
+              ? translations.expenses
+              : translations.income}
           </Text>
         </Pressable>)}
       </View>
@@ -69,19 +76,36 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
         ListHeaderComponent={<View style={styles.header}>
           <View style={styles.period}>
-            <Pressable onPress={() => changeMonth(-1)} accessibilityRole="button" accessibilityLabel="Предыдущий месяц" style={styles.arrow}>
+            <Pressable onPress={() => changeMonth(-1)} accessibilityRole="button" accessibilityLabel={translations.previousMonth} style={styles.arrow}>
               <Text style={[styles.arrowText, { color: palette.text }]}>‹</Text>
             </Pressable>
             <Text style={[styles.periodText, { color: palette.text }]}>{monthLabel}</Text>
-            <Pressable onPress={() => changeMonth(1)} accessibilityRole="button" accessibilityLabel="Следующий месяц" style={styles.arrow}>
+            <Pressable onPress={() => changeMonth(1)} accessibilityRole="button" accessibilityLabel={translations.nextMonth} style={styles.arrow}>
               <Text style={[styles.arrowText, { color: palette.text }]}>›</Text>
             </Pressable>
           </View>
           <View style={styles.chartPanel}>
-          <CategoryChart segments={segments} label={type === 'EXPENSE' ? 'Всего расходов' : 'Всего доходов'}
+          <CategoryChart segments={segments} 
+            label={
+              type === 'EXPENSE'
+                ? translations.totalExpenses
+                : translations.totalIncome
+            }
             currencySymbol="€" textColor={palette.text} mutedColor={palette.muted} trackColor={palette.line} />
-          <Pressable accessibilityRole="button" accessibilityLabel={type === 'EXPENSE' ? 'Добавить расход' : 'Добавить доход'}
-            onPress={() => Alert.alert(type === 'EXPENSE' ? 'Новый расход' : 'Новый доход', 'Форму создания подключим следующим этапом.')}
+          <Pressable accessibilityRole="button" 
+            accessibilityLabel={
+              type === 'EXPENSE'
+                ? translations.addExpense
+                : translations.addIncome
+            }
+            onPress={() =>
+              Alert.alert(
+                type === 'EXPENSE'
+                  ? translations.newExpense
+                  : translations.newIncome,
+                translations.createEntryPlaceholder,
+              )
+            }
             style={[styles.addButton, { backgroundColor: palette.accent }]}>
             <Text style={[styles.addText, { color: palette.background }]}>＋</Text>
           </Pressable>
@@ -95,11 +119,21 @@ export default function HomeScreen() {
               .map(([id, category]) => ({ id, name: category.name }))}
             palette={palette} />
         </View>}
-        ListEmptyComponent={<Text style={[styles.empty, { color: palette.muted }]}>За этот месяц операций нет</Text>}
+        ListEmptyComponent={
+          <Text style={[styles.empty, { color: palette.muted }]}>
+            {translations.noEntries}
+          </Text>
+        }
         renderItem={({ item }) => {
           const account = accounts[item.accountId];
-          return <Pressable accessibilityRole="button" accessibilityLabel={`Открыть операцию: ${item.title}`}
-            onPress={() => Alert.alert(item.title, `Операция ${item.id}. Форму редактирования подключим следующим этапом.`)}
+          return <Pressable accessibilityRole="button" 
+            accessibilityLabel={translations.openEntry(item.title)}
+            onPress={() =>
+              Alert.alert(
+                item.title,
+                translations.editEntryPlaceholder(item.id),
+              )
+            }
             style={[styles.entry, { backgroundColor: palette.card }]}>
             <View accessible accessibilityLabel={account.name} style={[styles.accountIcon, { backgroundColor: palette.icon }]}>
               <AccountIcon iconKey={account.iconKey} color={palette.accent} />
@@ -107,7 +141,7 @@ export default function HomeScreen() {
             <Text numberOfLines={2} style={[styles.entryTitle, { color: palette.text }]}>{item.title}</Text>
             <View style={styles.amountGroup}>
               <Text style={[styles.amount, { color: type === 'EXPENSE' ? palette.text : dark ? '#7BD4B0' : '#217E5D' }]}>
-                {formatAmount(item.amountCents)}
+                {formatAmount(item.amountCents, locale)}
               </Text>
               <Text accessibilityLabel={account.currencyCode} style={[styles.currency, { color: palette.muted }]}>{account.currencySymbol}</Text>
             </View>

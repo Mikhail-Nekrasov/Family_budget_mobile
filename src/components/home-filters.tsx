@@ -1,4 +1,5 @@
 import { accounts } from '@/data/home-demo';
+import { useLanguage } from '@/hooks/use-language';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export function HomeFilters({ accountIds, categoryIds, onAccountsChange, onCategoriesChange, categoryOptions, palette }: Props) {
+  const { translations } = useLanguage();
   const [active, setActive] = useState<'accounts' | 'categories' | null>(null);
   const [draft, setDraft] = useState<string[]>([]);
   const insets = useSafeAreaInsets();
@@ -43,29 +45,41 @@ export function HomeFilters({ accountIds, categoryIds, onAccountsChange, onCateg
       <View style={styles.row}>
         <Pressable accessibilityRole="button" onPress={() => openFilter('accounts')}
           style={[styles.chip, { backgroundColor: palette.card, borderColor: accountIds.length ? palette.accent : palette.line }]}>
-          <Text style={{ color: palette.text }}>{accountIds.length ? `Счета · ${accountIds.length}` : 'Все счета'} ▾</Text>
+          <Text style={{ color: palette.text }}>
+            {accountIds.length
+              ? translations.selectedAccounts(accountIds.length)
+              : translations.allAccounts} ▾
+          </Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => openFilter('categories')}
           style={[styles.chip, { backgroundColor: palette.card, borderColor: categoryIds.length ? palette.accent : palette.line }]}>
-          <Text style={{ color: palette.text }}>{categoryIds.length ? `Категории · ${categoryIds.length}` : 'Все категории'} ▾</Text>
+          <Text style={{ color: palette.text }}>
+            {categoryIds.length
+              ? translations.selectedCategories(categoryIds.length)
+              : translations.allCategories} ▾
+          </Text>
         </Pressable>
       </View>
       {(accountIds.length > 0 || categoryIds.length > 0) && (
         <Pressable accessibilityRole="button" style={styles.reset} onPress={() => { onAccountsChange([]); onCategoriesChange([]); }}>
-          <Text style={{ color: palette.accent }}>Сбросить фильтры</Text>
+          <Text style={{ color: palette.accent }}>{translations.resetFilters}</Text>
         </Pressable>
       )}
       <Modal visible={active !== null} transparent animationType="slide" onRequestClose={() => setActive(null)}>
         <View style={styles.overlay}>
-          <Pressable style={styles.backdrop} accessibilityRole="button" accessibilityLabel="Закрыть фильтр" onPress={() => setActive(null)} />
+          <Pressable style={styles.backdrop} accessibilityRole="button" accessibilityLabel={translations.closeFilter} onPress={() => setActive(null)} />
           <View accessibilityViewIsModal style={[styles.sheet, { backgroundColor: palette.card, paddingBottom: insets.bottom + 16 }]}>
             <View style={styles.heading}>
-              <Text style={[styles.title, { color: palette.text }]}>{active === 'accounts' ? 'Счета' : 'Категории'}</Text>
+              <Text style={[styles.title, { color: palette.text }]}>
+                {active === 'accounts'
+                  ? translations.accounts
+                  : translations.categories}
+              </Text>
               <Pressable accessibilityRole="button" style={styles.close} onPress={() => setActive(null)}>
-                <Text style={{ color: palette.accent }}>Отмена</Text>
+                <Text style={{ color: palette.accent }}>{translations.cancel}</Text>
               </Pressable>
             </View>
-            <Text style={{ color: palette.muted }}>Без отметок — показывать все.</Text>
+            <Text style={{ color: palette.muted }}>{translations.filterHint}</Text>
             <ScrollView style={styles.options}>
               {options.map((option) => (
                 <Pressable key={option.id} accessibilityRole="checkbox" accessibilityState={{ checked: draft.includes(option.id) }}
@@ -76,7 +90,7 @@ export function HomeFilters({ accountIds, categoryIds, onAccountsChange, onCateg
               ))}
             </ScrollView>
             <Pressable accessibilityRole="button" onPress={apply} style={[styles.apply, { borderColor: palette.accent }]}>
-              <Text style={{ color: palette.accent, fontWeight: '600' }}>Применить</Text>
+              <Text style={{ color: palette.accent, fontWeight: '600' }}>{translations.apply}</Text>
             </Pressable>
           </View>
         </View>

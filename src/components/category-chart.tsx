@@ -1,4 +1,5 @@
 import { formatAmount } from '@/data/home-demo';
+import { useLanguage } from '@/hooks/use-language';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -19,6 +20,7 @@ type Props = {
 };
 
 export function CategoryChart({ segments, label, currencySymbol, textColor, mutedColor, trackColor }: Props) {
+  const { locale } = useLanguage();
   const total = segments.reduce((sum, segment) => sum + segment.amountCents, 0);
   const radius = 82;
   const circumference = 2 * Math.PI * radius;
@@ -26,7 +28,7 @@ export function CategoryChart({ segments, label, currencySymbol, textColor, mute
 
   return (
     <View style={styles.container}>
-      <View style={styles.chart} accessible accessibilityLabel={`${label}: ${formatAmount(total)} ${currencySymbol}`}>
+      <View style={styles.chart} accessible accessibilityLabel={`${label}: ${formatAmount(total, locale)} ${currencySymbol}`}>
         <Svg width="100%" height="100%" viewBox="0 0 200 200">
           <Circle cx={100} cy={100} r={radius} fill="none" stroke={trackColor} strokeWidth={19} />
           {total > 0 && segments.map((segment) => {
@@ -42,7 +44,7 @@ export function CategoryChart({ segments, label, currencySymbol, textColor, mute
         <View style={styles.center} pointerEvents="none">
           <Text style={[styles.label, { color: mutedColor }]}>{label}</Text>
           <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55}
-            style={[styles.total, { color: textColor }]}>{formatAmount(total)} {currencySymbol}</Text>
+            style={[styles.total, { color: textColor }]}>{formatAmount(total, locale)} {currencySymbol}</Text>
         </View>
       </View>
 

@@ -2,13 +2,15 @@ export type EntryType = 'EXPENSE' | 'INCOME';
 
 export const accounts = {
   cash: {
-    name: 'Наличные',
+    name: 'Cash',
+    balanceCents: 25000,
     iconKey: 'cash',
     currencyCode: 'EUR',
     currencySymbol: '€',
   },
   card: {
-    name: 'Банковская карта',
+    name: 'Bank card',
+    balanceCents: 120000,
     iconKey: 'card',
     currencyCode: 'EUR',
     currencySymbol: '€',
@@ -16,11 +18,26 @@ export const accounts = {
 } as const;
 
 export const categories = {
-  groceries: { name: 'Продукты', color: '#EF9F45' },
-  housing: { name: 'Жильё', color: '#8171CF' },
-  transport: { name: 'Транспорт', color: '#4B9FBA' },
-  salary: { name: 'Зарплата', color: '#469D83' },
-  otherIncome: { name: 'Другие доходы', color: '#86BA63' },
+  groceries: {
+    name: 'Groceries',
+    color: '#EF9F45',
+  },
+  housing: {
+    name: 'Housing',
+    color: '#8171CF',
+  },
+  transport: {
+    name: 'Transport',
+    color: '#4B9FBA',
+  },
+  salary: {
+    name: 'Salary',
+    color: '#469D83',
+  },
+  otherIncome: {
+    name: 'Other income',
+    color: '#86BA63',
+  },
 } as const;
 
 type DemoEntry = {
@@ -41,7 +58,7 @@ const currentMonth =
 export const demoEntries: DemoEntry[] = [
   {
     id: '1',
-    title: 'Покупка продуктов',
+    title: 'Grocery shopping',
     type: 'EXPENSE',
     amountCents: 4250,
     accountId: 'card',
@@ -50,7 +67,7 @@ export const demoEntries: DemoEntry[] = [
   },
   {
     id: '2',
-    title: 'Проездной',
+    title: 'Travel pass',
     type: 'EXPENSE',
     amountCents: 7200,
     accountId: 'card',
@@ -59,7 +76,7 @@ export const demoEntries: DemoEntry[] = [
   },
   {
     id: '3',
-    title: 'Аренда квартиры',
+    title: 'Rent',
     type: 'EXPENSE',
     amountCents: 85000,
     accountId: 'card',
@@ -68,7 +85,7 @@ export const demoEntries: DemoEntry[] = [
   },
   {
     id: '4',
-    title: 'Овощи и фрукты',
+    title: 'Fruit and vegetables',
     type: 'EXPENSE',
     amountCents: 1875,
     accountId: 'cash',
@@ -77,7 +94,7 @@ export const demoEntries: DemoEntry[] = [
   },
   {
     id: '5',
-    title: 'Поездка на автобусе',
+    title: 'Bus ticket',
     type: 'EXPENSE',
     amountCents: 320,
     accountId: 'cash',
@@ -86,7 +103,7 @@ export const demoEntries: DemoEntry[] = [
   },
   {
     id: '6',
-    title: 'Зарплата',
+    title: 'Salary',
     type: 'INCOME',
     amountCents: 250000,
     accountId: 'card',
@@ -95,7 +112,7 @@ export const demoEntries: DemoEntry[] = [
   },
   {
     id: '7',
-    title: 'Продажа вещей',
+    title: 'Selling items',
     type: 'INCOME',
     amountCents: 6500,
     accountId: 'cash',
@@ -104,8 +121,11 @@ export const demoEntries: DemoEntry[] = [
   },
 ];
 
-export function formatAmount(cents: number): string {
-  return new Intl.NumberFormat('ru-RU', {
+export function formatAmount(
+  cents: number,
+  locale: string,
+): string {
+  return new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(cents / 100);
