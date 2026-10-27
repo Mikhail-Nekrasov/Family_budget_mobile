@@ -1,10 +1,12 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
 import * as SplashScreen from 'expo-splash-screen';
+import { SQLiteProvider } from 'expo-sqlite';
 import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { initializeDatabase } from '@/database/initialize-database';
 import { useLanguage } from '@/hooks/use-language';
 import { LanguageProvider } from '@/i18n/language-provider';
 
@@ -12,9 +14,14 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   return (
-    <LanguageProvider>
-      <AppNavigation />
-    </LanguageProvider>
+    <SQLiteProvider
+      databaseName="family-budget.db"
+      onInit={initializeDatabase}
+    >
+      <LanguageProvider>
+        <AppNavigation />
+      </LanguageProvider>
+    </SQLiteProvider>
   );
 }
 
@@ -54,15 +61,6 @@ function AppNavigation() {
               drawerLabel: translations.settings,
               title: translations.settings,
               headerShown: true,
-            }}
-          />
-
-          <Drawer.Screen
-            name="explore"
-            options={{
-              drawerItemStyle: {
-                display: 'none',
-              },
             }}
           />
         </Drawer>

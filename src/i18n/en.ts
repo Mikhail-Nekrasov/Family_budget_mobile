@@ -47,6 +47,27 @@ export const en = {
 
   settings: 'Settings',
   language: 'Language',
+
+  loading: 'Loading',
+  noAccounts: 'No accounts yet',
+  loadAccountsError: 'Could not load accounts',
+
+  newAccount: 'New account',
+  accountName: 'Account name',
+  description: 'Description',
+  openingBalance: 'Opening balance',
+  currency: 'Currency',
+  accountIcon: 'Account icon',
+  cashIcon: 'Cash',
+  cardIcon: 'Card',
+  save: 'Save',
+  saving: 'Saving',
+  error: 'Error',
+  accountNameRequired: 'Enter an account name',
+  invalidAmount: 'Enter a valid amount with up to two decimal places',
+  saveAccountError: 'Could not save the account',
+
+  editAccount: 'Edit account',
 };
 
 export type Messages = typeof en;

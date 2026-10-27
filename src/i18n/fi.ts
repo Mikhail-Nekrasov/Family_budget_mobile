@@ -49,4 +49,25 @@ export const fi: Messages = {
 
   settings: 'Asetukset',
   language: 'Kieli',
+
+  loading: 'Ladataan',
+  noAccounts: 'Ei vielä tilejä',
+  loadAccountsError: 'Tilien lataaminen epäonnistui',
+
+  newAccount: 'Uusi tili',
+  accountName: 'Tilin nimi',
+  description: 'Kuvaus',
+  openingBalance: 'Alkusaldo',
+  currency: 'Valuutta',
+  accountIcon: 'Tilin kuvake',
+  cashIcon: 'Käteinen',
+  cardIcon: 'Kortti',
+  save: 'Tallenna',
+  saving: 'Tallennetaan',
+  error: 'Virhe',
+  accountNameRequired: 'Anna tilin nimi',
+  invalidAmount: 'Anna kelvollinen summa, jossa on enintään kaksi desimaalia',
+  saveAccountError: 'Tilin tallentaminen epäonnistui',
+
+  editAccount: 'Muokkaa tiliä',
 };

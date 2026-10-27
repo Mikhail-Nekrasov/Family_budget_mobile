@@ -49,4 +49,25 @@ export const ru: Messages = {
 
   settings: 'Настройки',
   language: 'Язык',
+
+  loading: 'Загрузка',
+  noAccounts: 'Счетов пока нет',
+  loadAccountsError: 'Не удалось загрузить счета',
+
+  newAccount: 'Новый счёт',
+  accountName: 'Название счёта',
+  description: 'Описание',
+  openingBalance: 'Начальный остаток',
+  currency: 'Валюта',
+  accountIcon: 'Иконка счёта',
+  cashIcon: 'Наличные',
+  cardIcon: 'Карта',
+  save: 'Сохранить',
+  saving: 'Сохранение',
+  error: 'Ошибка',
+  accountNameRequired: 'Введите название счёта',
+  invalidAmount: 'Введите корректную сумму, не более двух знаков после запятой',
+  saveAccountError: 'Не удалось сохранить счёт',
+
+  editAccount: 'Редактирование счёта',
 };
