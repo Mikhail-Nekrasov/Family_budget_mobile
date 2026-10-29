@@ -56,6 +56,15 @@ function AppNavigation() {
           />
 
           <Drawer.Screen
+            name="categories"
+            options={{
+              drawerLabel: translations.categories,
+              title: translations.categories,
+              headerShown: false,
+            }}
+          />
+
+          <Drawer.Screen
             name="settings"
             options={{
               drawerLabel: translations.settings,

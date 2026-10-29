@@ -1,30 +1,30 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRef, useState } from 'react';
 import {
-    Alert,
-    Button,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-    useColorScheme,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  useColorScheme
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountIcon } from '@/components/accounts/account-icon';
+import { AppButton } from '@/components/app-button';
 import { ScreenBackground } from '@/components/screen-background';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
 import {
-    archiveAccount,
-    createAccount,
-    deleteLocalAccount,
-    restoreAccount,
-    updateAccount
+  archiveAccount,
+  createAccount,
+  deleteLocalAccount,
+  restoreAccount,
+  updateAccount
 } from '@/repositories/account-repository';
 import { parseAmountToMinor } from '@/utils/money';
 
@@ -300,24 +300,26 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
             </View>
 
             <View style={styles.actions}>
-              <Button
+              <AppButton
                 title={
                   saving
                     ? translations.saving
                     : translations.save
                 }
+                nativeGlass
                 disabled={saving}
                 onPress={() => void saveAccount()}
               />
 
               {account && (
                 <>
-                  <Button
+                  <AppButton
                     title={
                       account.archivedAt === null
                         ? translations.archiveAccount
                         : translations.restoreAccount
                     }
+                    nativeGlass
                     disabled={saving}
                     onPress={() =>
                       void changeAccount(
@@ -329,9 +331,10 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
                   />
 
                   {account.serverId === null && (
-                    <Button
+                    <AppButton
                       title={translations.deleteAccount}
-                      color="#C62828"
+                      variant="danger"
+                      nativeGlass
                       disabled={saving}
                       onPress={confirmDeleteAccount}
                     />
@@ -339,8 +342,9 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
                 </>
               )}
 
-              <Button
+              <AppButton
                 title={translations.cancel}
+                nativeGlass
                 disabled={saving}
                 onPress={onCancel}
               />

@@ -1,11 +1,11 @@
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
-    useColorScheme,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme,
 } from 'react-native';
 
 import { AccountIcon } from '@/components/accounts/account-icon';
@@ -133,8 +133,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    minHeight: 72,
-    padding: 16,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 16,
     overflow: 'hidden',
   },

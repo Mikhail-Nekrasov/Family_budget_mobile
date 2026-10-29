@@ -78,6 +78,14 @@ export const en = {
   deleteAccountConfirmation: (name: string) =>
     `Permanently delete "${name}"?`,
   accountActionError: 'Could not complete the action',
+
+  noCategories: 'No categories',
+  loadCategoriesError: 'Could not load categories',
+
+  newCategory: 'New category',
+  categoryName: 'Category name',
+  categoryNameRequired: 'Enter a category name',
+  saveCategoryError: 'Could not save category',
 };
 
 export type Messages = typeof en;

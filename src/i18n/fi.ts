@@ -80,4 +80,12 @@ export const fi: Messages = {
   deleteAccountConfirmation: (name: string) =>
     `Poistetaanko tili "${name}" pysyvästi?`,
   accountActionError: 'Toimintoa ei voitu suorittaa',
+
+  noCategories: 'Ei kategorioita',
+  loadCategoriesError: 'Kategorioiden lataaminen epäonnistui',
+
+  newCategory: 'Uusi kategoria',
+  categoryName: 'Kategorian nimi',
+  categoryNameRequired: 'Anna kategorian nimi',
+  saveCategoryError: 'Kategorian tallentaminen epäonnistui',
 };

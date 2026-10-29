@@ -80,4 +80,12 @@ export const ru: Messages = {
   deleteAccountConfirmation: (name: string) =>
     `Удалить счёт «${name}» без возможности восстановления?`,
   accountActionError: 'Не удалось выполнить действие',
+
+  noCategories: 'Категорий пока нет',
+  loadCategoriesError: 'Не удалось загрузить категории',
+
+  newCategory: 'Новая категория',
+  categoryName: 'Название категории',
+  categoryNameRequired: 'Введите название категории',
+  saveCategoryError: 'Не удалось сохранить категорию',
 };

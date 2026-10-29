@@ -110,6 +110,7 @@ export default function AccountsScreen() {
         <View style={styles.toolbar}>
           <AppButton
             title={translations.newAccount}
+            nativeGlass
             rightSymbol="＋"
             disabled={showArchived}
             onPress={() => {
@@ -177,6 +178,7 @@ export default function AccountsScreen() {
           visible={createVisible}
           animationType="slide"
           presentationStyle="fullScreen"
+          backdropColor={dark ? '#111722' : '#F5F6F9'}
           onRequestClose={() => setCreateVisible(false)}
         >
           {createVisible && (
@@ -200,7 +202,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    gap: 12,
+    gap: 4,
   },
   account: {
     flexDirection: 'row',

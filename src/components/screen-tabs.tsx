@@ -1,4 +1,9 @@
 import { BlurView } from 'expo-blur';
+import {
+  GlassView,
+  isGlassEffectAPIAvailable,
+  isLiquidGlassAvailable,
+} from 'expo-glass-effect';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Pressable,
@@ -25,6 +30,9 @@ export function ScreenTabs<Value extends string>({
   onChange,
 }: ScreenTabsProps<Value>) {
   const dark = useColorScheme() === 'dark';
+  const useNativeGlass =
+    isGlassEffectAPIAvailable() &&
+    isLiquidGlassAvailable();
 
   const palette = dark
     ? {
@@ -63,53 +71,68 @@ export function ScreenTabs<Value extends string>({
                     ? 'rgba(255, 255, 255, 0.12)'
                     : 'rgba(54, 91, 188, 0.18)'
                   : 'transparent',
-                opacity: pressed ? 0.6 : 1,
+                opacity: useNativeGlass && selected
+                  ? 1
+                  : pressed
+                    ? 0.6
+                    : 1,
               },
             ]}
           >
             {selected && (
-              <BlurView
-                intensity={10}
-                tint={dark ? 'dark' : 'light'}
-                pointerEvents="none"
-                style={[
-                  StyleSheet.absoluteFill,
-                  { opacity: 0.5 },
-                ]}
-              />
-            )}
-            {selected && (
-              <LinearGradient
-                colors={[
-                  dark
-                    ? 'rgba(255, 255, 255, 0.18)'
-                    : 'rgba(255, 255, 255, 0.65)',
-                  'rgba(255, 255, 255, 0)',
-                ]}
-                start={{ x: 0.2, y: 0 }}
-                end={{ x: 0.4, y: 1 }}
-                pointerEvents="none"
-                style={styles.glassHighlight}
-              />
-            )}
-            {selected && (
-              <View
-                pointerEvents="none"
-                style={[
-                  styles.glassEdge,
-                  {
-                    borderTopColor: dark
-                      ? 'rgba(255, 255, 255, 0.45)'
-                      : 'rgba(255, 255, 255, 0.95)',
-                    borderLeftColor: dark
-                      ? 'rgba(255, 255, 255, 0.25)'
-                      : 'rgba(255, 255, 255, 0.75)',
-                    borderRightColor: dark
-                      ? 'rgba(255, 255, 255, 0.12)'
-                      : 'rgba(54, 91, 188, 0.18)',
-                  },
-                ]}
-              />
+              useNativeGlass ? (
+                <GlassView
+                  glassEffectStyle="regular"
+                  pointerEvents="none"
+                  style={[
+                    StyleSheet.absoluteFill,
+                    styles.nativeGlass,
+                  ]}
+                />
+              ) : (
+                <>
+                    <BlurView
+                      intensity={10}
+                      tint={dark ? 'dark' : 'light'}
+                      pointerEvents="none"
+                      style={[
+                        StyleSheet.absoluteFill,
+                        { opacity: 0.5 },
+                      ]}
+                    />
+
+                    <LinearGradient
+                      colors={[
+                        dark
+                          ? 'rgba(255, 255, 255, 0.18)'
+                          : 'rgba(255, 255, 255, 0.65)',
+                        'rgba(255, 255, 255, 0)',
+                      ]}
+                      start={{ x: 0.2, y: 0 }}
+                      end={{ x: 0.4, y: 1 }}
+                      pointerEvents="none"
+                      style={styles.glassHighlight}
+                    />
+
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        styles.glassEdge,
+                        {
+                          borderTopColor: dark
+                            ? 'rgba(255, 255, 255, 0.45)'
+                            : 'rgba(255, 255, 255, 0.95)',
+                          borderLeftColor: dark
+                            ? 'rgba(255, 255, 255, 0.25)'
+                            : 'rgba(255, 255, 255, 0.75)',
+                          borderRightColor: dark
+                            ? 'rgba(255, 255, 255, 0.12)'
+                            : 'rgba(54, 91, 188, 0.18)',
+                        },
+                      ]}
+                    />
+                </>
+              )
             )}
             <Text
               style={[
@@ -172,5 +195,9 @@ const styles = StyleSheet.create({
     height: '200%',
     borderTopLeftRadius: 11,
     borderTopRightRadius: 11,
+  },
+  nativeGlass: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
 });

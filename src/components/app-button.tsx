@@ -1,12 +1,17 @@
 import { BlurView } from 'expo-blur';
+import {
+  GlassView,
+  isGlassEffectAPIAvailable,
+  isLiquidGlassAvailable,
+} from 'expo-glass-effect';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-    ActivityIndicator,
-    Pressable,
-    StyleSheet,
-    Text,
-    useColorScheme,
-    View
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  useColorScheme,
+  View
 } from 'react-native';
 
 type AppButtonProps = {
@@ -15,6 +20,8 @@ type AppButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   rightSymbol?: string;
+  nativeGlass?: boolean;
+  variant?: 'default' | 'danger';
 };
 
 export function AppButton({
@@ -23,20 +30,27 @@ export function AppButton({
   disabled = false,
   loading = false,
   rightSymbol,
+  nativeGlass = false,
+  variant = 'default',
 }: AppButtonProps) {
   const dark = useColorScheme() === 'dark';
   const unavailable = disabled || loading;
+  const useNativeGlass =
+    nativeGlass &&
+    !unavailable &&
+    isGlassEffectAPIAvailable() &&
+    isLiquidGlassAvailable();
 
   const palette = dark
     ? {
-        text: '#A0B8FF',
+        text: variant === 'danger' ? '#FF8A80' : '#A0B8FF',
         edgeTop: 'rgba(255, 255, 255, 0.45)',
         edgeLeft: 'rgba(255, 255, 255, 0.25)',
         edgeShadow: 'rgba(255, 255, 255, 0.12)',
         highlight: 'rgba(255, 255, 255, 0.18)',
       }
     : {
-        text: '#365BBC',
+        text: variant === 'danger' ? '#C62828' : '#365BBC',
         edgeTop: 'rgba(255, 255, 255, 0.95)',
         edgeLeft: 'rgba(255, 255, 255, 0.75)',
         edgeShadow: 'rgba(54, 91, 188, 0.18)',
@@ -57,42 +71,58 @@ export function AppButton({
         styles.button,
         {
           opacity: unavailable ? 0.45 : pressed ? 0.75 : 1,
+          transform: [
+            { scale: pressed ? 0.985 : 1 },
+          ],
         },
       ]}
     >
-      <BlurView
-        intensity={15}
-        tint="default"
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          styles.blur,
-        ]}
-      />
+      {useNativeGlass ? (
+        <GlassView
+          glassEffectStyle="regular"
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            styles.nativeGlass,
+          ]}
+        />
+      ) : (
+        <>
+          <BlurView
+            intensity={15}
+            tint="default"
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              styles.blur,
+            ]}
+          />
 
-      <LinearGradient
-        colors={[
-          palette.highlight,
-          'rgba(255, 255, 255, 0)',
-        ]}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.8, y: 1 }}
-        pointerEvents="none"
-        style={styles.highlight}
-      />
+          <LinearGradient
+            colors={[
+              palette.highlight,
+              'rgba(255, 255, 255, 0)',
+            ]}
+            start={{ x: 0.2, y: 0 }}
+            end={{ x: 0.8, y: 1 }}
+            pointerEvents="none"
+            style={styles.highlight}
+          />
 
-      <View
-        pointerEvents="none"
-        style={[
-          styles.edge,
-          {
-            borderTopColor: palette.edgeTop,
-            borderLeftColor: palette.edgeLeft,
-            borderRightColor: palette.edgeShadow,
-            borderBottomColor: palette.edgeShadow,
-          },
-        ]}
-      />
+          <View
+            pointerEvents="none"
+            style={[
+              styles.edge,
+              {
+                borderTopColor: palette.edgeTop,
+                borderLeftColor: palette.edgeLeft,
+                borderRightColor: palette.edgeShadow,
+                borderBottomColor: palette.edgeShadow,
+              },
+            ]}
+          />
+        </>
+      )}
 
       {loading && (
         <ActivityIndicator
@@ -104,7 +134,9 @@ export function AppButton({
       <Text
         style={[
           styles.label,
-          { color: palette.text },
+          { 
+            color: palette.text,
+          },
         ]}
       >
         {title}
@@ -121,7 +153,9 @@ export function AppButton({
             accessible={false}
             style={[
                 styles.rightSymbol,
-                { color: palette.text },
+                { 
+                  color: palette.text,
+                },
             ]}
             >
             {rightSymbol}
@@ -184,5 +218,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  nativeGlass: {
+    borderRadius: 12,
   },
 });
