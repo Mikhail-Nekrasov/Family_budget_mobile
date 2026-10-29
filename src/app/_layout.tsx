@@ -51,7 +51,7 @@ function AppNavigation() {
             options={{
               drawerLabel: translations.accounts,
               title: translations.accounts,
-              headerShown: true,
+              headerShown: false,
             }}
           />
 
@@ -60,7 +60,7 @@ function AppNavigation() {
             options={{
               drawerLabel: translations.settings,
               title: translations.settings,
-              headerShown: true,
+              headerShown: false,
             }}
           />
         </Drawer>

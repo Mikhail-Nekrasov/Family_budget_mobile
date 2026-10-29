@@ -1,21 +1,14 @@
 import { CategoryChart, type ChartSegment } from '@/components/category-chart';
+import { EntryCard } from '@/components/entry-card';
 import { HomeFilters } from '@/components/home-filters';
+import { MenuButton } from '@/components/menu-button';
+import { ScreenBackground } from '@/components/screen-background';
+import { ScreenTabs } from '@/components/screen-tabs';
 import { accounts, categories, demoEntries, formatAmount, type EntryType } from '@/data/home-demo';
 import { useLanguage } from '@/hooks/use-language';
-import { DrawerToggleButton } from 'expo-router/drawer';
 import { useState } from 'react';
-import { Alert, FlatList, Image, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
-
-function AccountIcon({ iconKey, color }: { iconKey: 'cash' | 'card'; color: string }) {
-  return <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
-    <Rect x={2} y={5} width={20} height={14} rx={3} fill="none" stroke={color} strokeWidth={1.7} />
-    {iconKey === 'card'
-      ? <Path d="M2 10H22 M6 15H10" fill="none" stroke={color} strokeWidth={1.7} />
-      : <Circle cx={12} cy={12} r={3} fill="none" stroke={color} strokeWidth={1.7} />}
-  </Svg>;
-}
 
 export default function HomeScreen() {
   const { translations, locale } = useLanguage();
@@ -47,120 +40,120 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView 
-      edges={['top', 'left', 'right']}
-      style={[styles.screen, { backgroundColor: palette.background }]}
-    >
-      {!dark && (
-        <Image
-          source={require('../../assets/images/bears-background.png')}
-          style={styles.backgroundImage}
-          resizeMode="cover"
-          accessible={false}
-        />
-      )}
-      <View style={[styles.tabs, { borderBottomColor: palette.line }]} accessibilityRole="tablist">
-        <DrawerToggleButton tintColor={palette.text} />
-        {(['EXPENSE', 'INCOME'] as const).map((value) => <Pressable key={value}
-          accessibilityRole="tab" accessibilityState={{ selected: type === value }} onPress={() => { setType(value); setCategoryIds([]); }}
-          style={[styles.tab, { borderBottomColor: type === value ? palette.accent : 'transparent' }]}>
-          <Text style={[styles.tabText, { color: type === value ? palette.accent : palette.muted }]}>
-            {value === 'EXPENSE'
-              ? translations.expenses
-              : translations.income}
-          </Text>
-        </Pressable>)}
-      </View>
+    <ScreenBackground>
+      <SafeAreaView
+        edges={['top', 'left', 'right']}
+        style={styles.screen}
+      >
+        <View style={styles.tabs}>
+          <MenuButton />
 
-      <FlatList data={entries} keyExtractor={(entry) => entry.id}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
-        ListHeaderComponent={<View style={styles.header}>
-          <View style={styles.period}>
-            <Pressable onPress={() => changeMonth(-1)} accessibilityRole="button" accessibilityLabel={translations.previousMonth} style={styles.arrow}>
-              <Text style={[styles.arrowText, { color: palette.text }]}>‹</Text>
-            </Pressable>
-            <Text style={[styles.periodText, { color: palette.text }]}>{monthLabel}</Text>
-            <Pressable onPress={() => changeMonth(1)} accessibilityRole="button" accessibilityLabel={translations.nextMonth} style={styles.arrow}>
-              <Text style={[styles.arrowText, { color: palette.text }]}>›</Text>
-            </Pressable>
-          </View>
-          <View style={styles.chartPanel}>
-          <CategoryChart segments={segments} 
-            label={
-              type === 'EXPENSE'
-                ? translations.totalExpenses
-                : translations.totalIncome
-            }
-            currencySymbol="€" textColor={palette.text} mutedColor={palette.muted} trackColor={palette.line} />
-          <Pressable accessibilityRole="button" 
-            accessibilityLabel={
-              type === 'EXPENSE'
-                ? translations.addExpense
-                : translations.addIncome
-            }
-            onPress={() =>
-              Alert.alert(
+          <ScreenTabs<EntryType>
+            options={[
+              {
+                value: 'EXPENSE',
+                label: translations.expenses,
+              },
+              {
+                value: 'INCOME',
+                label: translations.income,
+              },
+            ]}
+            value={type}
+            onChange={(value) => {
+              setType(value);
+              setCategoryIds([]);
+            }}
+          />
+        </View>
+
+        <FlatList data={entries} keyExtractor={(entry) => entry.id}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+          ListHeaderComponent={<View style={styles.header}>
+            <View style={styles.period}>
+              <Pressable onPress={() => changeMonth(-1)} accessibilityRole="button" accessibilityLabel={translations.previousMonth} style={styles.arrow}>
+                <Text style={[styles.arrowText, { color: palette.text }]}>‹</Text>
+              </Pressable>
+              <Text style={[styles.periodText, { color: palette.text }]}>{monthLabel}</Text>
+              <Pressable onPress={() => changeMonth(1)} accessibilityRole="button" accessibilityLabel={translations.nextMonth} style={styles.arrow}>
+                <Text style={[styles.arrowText, { color: palette.text }]}>›</Text>
+              </Pressable>
+            </View>
+            <View style={styles.chartPanel}>
+            <CategoryChart segments={segments} 
+              label={
                 type === 'EXPENSE'
-                  ? translations.newExpense
-                  : translations.newIncome,
-                translations.createEntryPlaceholder,
-              )
-            }
-            style={[styles.addButton, { backgroundColor: palette.accent }]}>
-            <Text style={[styles.addText, { color: palette.background }]}>＋</Text>
-          </Pressable>
-          </View>
-          <HomeFilters accountIds={accountIds} categoryIds={categoryIds}
-            onAccountsChange={setAccountIds} onCategoriesChange={setCategoryIds}
-            categoryOptions={Object.entries(categories)
-              .filter(([id]) => type === 'EXPENSE'
-                ? ['groceries', 'housing', 'transport'].includes(id)
-                : ['salary', 'otherIncome'].includes(id))
-              .map(([id, category]) => ({ id, name: category.name }))}
-            palette={palette} />
-        </View>}
-        ListEmptyComponent={
-          <Text style={[styles.empty, { color: palette.muted }]}>
-            {translations.noEntries}
-          </Text>
-        }
-        renderItem={({ item }) => {
-          const account = accounts[item.accountId];
-          return <Pressable accessibilityRole="button" 
-            accessibilityLabel={translations.openEntry(item.title)}
-            onPress={() =>
-              Alert.alert(
-                item.title,
-                translations.editEntryPlaceholder(item.id),
-              )
-            }
-            style={[styles.entry, { backgroundColor: palette.card }]}>
-            <View accessible accessibilityLabel={account.name} style={[styles.accountIcon, { backgroundColor: palette.icon }]}>
-              <AccountIcon iconKey={account.iconKey} color={palette.accent} />
+                  ? translations.totalExpenses
+                  : translations.totalIncome
+              }
+              currencySymbol="€" textColor={palette.text} mutedColor={palette.muted} trackColor={palette.line} />
+            <Pressable accessibilityRole="button" 
+              accessibilityLabel={
+                type === 'EXPENSE'
+                  ? translations.addExpense
+                  : translations.addIncome
+              }
+              onPress={() =>
+                Alert.alert(
+                  type === 'EXPENSE'
+                    ? translations.newExpense
+                    : translations.newIncome,
+                  translations.createEntryPlaceholder,
+                )
+              }
+              style={[styles.addButton, { backgroundColor: palette.accent }]}>
+              <Text style={[styles.addText, { color: palette.background }]}>＋</Text>
+            </Pressable>
             </View>
-            <Text numberOfLines={2} style={[styles.entryTitle, { color: palette.text }]}>{item.title}</Text>
-            <View style={styles.amountGroup}>
-              <Text style={[styles.amount, { color: type === 'EXPENSE' ? palette.text : dark ? '#7BD4B0' : '#217E5D' }]}>
-                {formatAmount(item.amountCents, locale)}
-              </Text>
-              <Text accessibilityLabel={account.currencyCode} style={[styles.currency, { color: palette.muted }]}>{account.currencySymbol}</Text>
-            </View>
-          </Pressable>;
-        }} />
-    </SafeAreaView>
+            <HomeFilters accountIds={accountIds} categoryIds={categoryIds}
+              onAccountsChange={setAccountIds} onCategoriesChange={setCategoryIds}
+              categoryOptions={Object.entries(categories)
+                .filter(([id]) => type === 'EXPENSE'
+                  ? ['groceries', 'housing', 'transport'].includes(id)
+                  : ['salary', 'otherIncome'].includes(id))
+                .map(([id, category]) => ({ id, name: category.name }))}
+              palette={palette} />
+          </View>}
+          ListEmptyComponent={
+            <Text style={[styles.empty, { color: palette.muted }]}>
+              {translations.noEntries}
+            </Text>
+          }
+          renderItem={({ item }) => {
+            const account = accounts[item.accountId];
+
+            return (
+              <EntryCard
+                title={item.title}
+                accountName={account.name}
+                iconKey={account.iconKey}
+                amount={formatAmount(item.amountCents, locale)}
+                currencyCode={account.currencyCode}
+                currencySymbol={account.currencySymbol}
+                income={item.type === 'INCOME'}
+                accessibilityLabel={translations.openEntry(item.title)}
+                onPress={() =>
+                  Alert.alert(
+                    item.title,
+                    translations.editEntryPlaceholder(item.id),
+                  )
+                }
+              />
+            );
+          }
+        } />
+      </SafeAreaView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  tabs: { flexDirection: 'row', paddingHorizontal: 8, alignItems: 'center', borderBottomWidth: 1 },
-  tab: {
-    flex: 1,
+  tabs: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 3
+    paddingHorizontal: 8,
   },
-  tabText: { fontSize: 20, fontWeight: '600' },
   content: {
     paddingHorizontal: 20,
     gap: 10
@@ -177,20 +170,11 @@ const styles = StyleSheet.create({
   periodText: { fontSize: 16, fontWeight: '600', textTransform: 'capitalize' },
   arrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   arrowText: { fontSize: 32 },
-  entry: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14, minHeight: 76 },
-  accountIcon: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  entryTitle: { flex: 1, fontSize: 15, fontWeight: '500' },
-  amountGroup: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  amount: { fontSize: 16, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  
+  
+  
+  
+  
   currency: { fontSize: 16 },
   empty: { textAlign: 'center', paddingVertical: 28, fontSize: 15 },
-  backgroundImage: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-  },
 });

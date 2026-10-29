@@ -70,4 +70,14 @@ export const fi: Messages = {
   saveAccountError: 'Tilin tallentaminen epäonnistui',
 
   editAccount: 'Muokkaa tiliä',
+
+  activeAccounts: 'Aktiiviset',
+  archivedAccounts: 'Arkistoidut',
+  noArchivedAccounts: 'Ei arkistoituja tilejä',
+  archiveAccount: 'Arkistoi tili',
+  restoreAccount: 'Palauta tili',
+  deleteAccount: 'Poista tili',
+  deleteAccountConfirmation: (name: string) =>
+    `Poistetaanko tili "${name}" pysyvästi?`,
+  accountActionError: 'Toimintoa ei voitu suorittaa',
 };

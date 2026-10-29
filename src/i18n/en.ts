@@ -68,6 +68,16 @@ export const en = {
   saveAccountError: 'Could not save the account',
 
   editAccount: 'Edit account',
+
+  activeAccounts: 'Active',
+  archivedAccounts: 'Archived',
+  noArchivedAccounts: 'No archived accounts',
+  archiveAccount: 'Archive account',
+  restoreAccount: 'Restore account',
+  deleteAccount: 'Delete account',
+  deleteAccountConfirmation: (name: string) =>
+    `Permanently delete "${name}"?`,
+  accountActionError: 'Could not complete the action',
 };
 
 export type Messages = typeof en;

@@ -70,4 +70,14 @@ export const ru: Messages = {
   saveAccountError: 'Не удалось сохранить счёт',
 
   editAccount: 'Редактирование счёта',
+
+  activeAccounts: 'Активные',
+  archivedAccounts: 'Архивные',
+  noArchivedAccounts: 'Архивных счетов нет',
+  archiveAccount: 'Архивировать счёт',
+  restoreAccount: 'Восстановить счёт',
+  deleteAccount: 'Удалить счёт',
+  deleteAccountConfirmation: (name: string) =>
+    `Удалить счёт «${name}» без возможности восстановления?`,
+  accountActionError: 'Не удалось выполнить действие',
 };

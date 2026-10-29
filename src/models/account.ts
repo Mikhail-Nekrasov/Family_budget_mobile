@@ -11,4 +11,6 @@ export type Account = {
 
   openingBalanceMinor: number;
   balanceMinor: number;
+
+  archivedAt: string | null;
 };

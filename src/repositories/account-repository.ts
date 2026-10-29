@@ -25,7 +25,8 @@ const ACCOUNT_COLUMNS = `
   currency_code AS currencyCode,
   icon_key AS iconKey,
   opening_balance_minor AS openingBalanceMinor,
-  balance_minor AS balanceMinor
+  balance_minor AS balanceMinor,
+  archived_at AS archivedAt
 `;
 
 export async function getAccounts(
@@ -34,7 +35,19 @@ export async function getAccounts(
   return database.getAllAsync<Account>(`
     SELECT ${ACCOUNT_COLUMNS}
     FROM accounts
+    WHERE archived_at IS NULL
     ORDER BY name, sync_id
+  `);
+}
+
+export async function getArchivedAccounts(
+  database: SQLiteDatabase,
+): Promise<Account[]> {
+  return database.getAllAsync<Account>(`
+    SELECT ${ACCOUNT_COLUMNS}
+    FROM accounts
+    WHERE archived_at IS NOT NULL
+    ORDER BY archived_at DESC, sync_id
   `);
 }
 
@@ -79,6 +92,8 @@ export async function createAccount(
 
     openingBalanceMinor: input.openingBalanceMinor,
     balanceMinor: input.openingBalanceMinor,
+
+    archivedAt: null,
   };
 
   await database.runAsync(
@@ -140,5 +155,64 @@ export async function updateAccount(
 
   if (result.changes !== 1) {
     throw new Error('Account not found');
+  }
+}
+
+export async function archiveAccount(
+  database: SQLiteDatabase,
+  syncId: string,
+): Promise<void> {
+  const result = await database.runAsync(
+    `
+      UPDATE accounts
+      SET archived_at = ?
+      WHERE sync_id = ?
+        AND archived_at IS NULL
+    `,
+    new Date().toISOString(),
+    syncId,
+  );
+
+  if (result.changes !== 1) {
+    throw new Error('Active account not found');
+  }
+}
+
+export async function restoreAccount(
+  database: SQLiteDatabase,
+  syncId: string,
+): Promise<void> {
+  const result = await database.runAsync(
+    `
+      UPDATE accounts
+      SET archived_at = NULL
+      WHERE sync_id = ?
+        AND archived_at IS NOT NULL
+    `,
+    syncId,
+  );
+
+  if (result.changes !== 1) {
+    throw new Error('Archived account not found');
+  }
+}
+
+export async function deleteLocalAccount(
+  database: SQLiteDatabase,
+  syncId: string,
+): Promise<void> {
+  const result = await database.runAsync(
+    `
+      DELETE FROM accounts
+      WHERE sync_id = ?
+        AND server_id IS NULL
+    `,
+    syncId,
+  );
+
+  if (result.changes !== 1) {
+    throw new Error(
+      'Local account not found or already synchronized',
+    );
   }
 }

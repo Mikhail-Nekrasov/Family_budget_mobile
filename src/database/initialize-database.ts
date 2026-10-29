@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 
 export async function initializeDatabase(
   database: SQLiteDatabase,
@@ -48,6 +48,13 @@ export async function initializeDatabase(
 
         ALTER TABLE accounts
           ADD COLUMN server_version INTEGER;
+      `);
+    }
+
+    if (currentVersion < 3) {
+      await database.execAsync(`
+        ALTER TABLE accounts
+          ADD COLUMN archived_at TEXT;
       `);
     }
 
