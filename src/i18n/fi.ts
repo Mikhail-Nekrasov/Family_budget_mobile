@@ -88,4 +88,6 @@ export const fi: Messages = {
   categoryName: 'Kategorian nimi',
   categoryNameRequired: 'Anna kategorian nimi',
   saveCategoryError: 'Kategorian tallentaminen epäonnistui',
+
+  saveAccountOrderError: 'Tilien järjestyksen tallentaminen epäonnistui',
 };

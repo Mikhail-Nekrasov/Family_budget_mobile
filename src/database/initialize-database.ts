@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 4;
+const DATABASE_VERSION = 5;
 
 export async function initializeDatabase(
   database: SQLiteDatabase,
@@ -69,6 +69,29 @@ export async function initializeDatabase(
           type TEXT NOT NULL
             CHECK (type IN ('EXPENSE', 'INCOME'))
         );
+      `);
+    }
+
+    if (currentVersion < 5) {
+      await database.execAsync(`
+        CREATE TABLE account_order (
+          account_sync_id TEXT PRIMARY KEY NOT NULL,
+          sort_order INTEGER NOT NULL
+            CHECK (sort_order >= 0),
+
+          FOREIGN KEY (account_sync_id)
+            REFERENCES accounts(sync_id)
+            ON DELETE CASCADE
+        );
+
+        INSERT INTO account_order (
+          account_sync_id,
+          sort_order
+        )
+        SELECT
+          sync_id,
+          ROW_NUMBER() OVER (ORDER BY rowid) - 1
+        FROM accounts;
       `);
     }
 

@@ -15,6 +15,7 @@ type AccountCardProps = {
   account: Account;
   locale: string;
   onPress: () => void;
+  onLongPress?: () => void;
 };
 
 function formatBalance(account: Account, locale: string): string {
@@ -35,6 +36,7 @@ export function AccountCard({
   account,
   locale,
   onPress,
+  onLongPress,
 }: AccountCardProps) {
   const dark = useColorScheme() === 'dark';
 
@@ -58,6 +60,8 @@ export function AccountCard({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={500}
       style={({ pressed }) => [
         styles.card,
         {

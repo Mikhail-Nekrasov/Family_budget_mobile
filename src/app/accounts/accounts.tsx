@@ -1,15 +1,20 @@
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
+  Alert,
   Modal,
   StyleSheet,
   Text,
   View,
   useColorScheme
 } from 'react-native';
+import ReorderableList, {
+  reorderItems,
+  useReorderableDrag,
+  type ReorderableListReorderEvent,
+} from 'react-native-reorderable-list';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountCard } from '@/components/accounts/account-card';
@@ -19,7 +24,7 @@ import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
-import { getAccounts, getArchivedAccounts } from '@/repositories/account-repository';
+import { getAccounts, getArchivedAccounts, saveAccountOrder, } from '@/repositories/account-repository';
 
 type LoadStatus = 'loading' | 'ready' | 'error';
 
@@ -34,6 +39,31 @@ function formatBalance(account: Account, locale: string): string {
 
   return formatter.format(
     account.balanceMinor / 10 ** fractionDigits,
+  );
+}
+
+type ReorderableAccountCardProps = {
+  account: Account;
+  locale: string;
+  onPress: () => void;
+  canReorder: boolean;
+};
+
+function ReorderableAccountCard({
+  account,
+  locale,
+  onPress,
+  canReorder,
+}: ReorderableAccountCardProps) {
+  const drag = useReorderableDrag();
+
+  return (
+    <AccountCard
+      account={account}
+      locale={locale}
+      onPress={onPress}
+      onLongPress={canReorder ? drag : undefined}
+    />
   );
 }
 
@@ -63,6 +93,9 @@ export default function AccountsScreen() {
         text: '#192238',
         muted: '#6C7890',
       };
+
+  const [savingOrder, setSavingOrder] = useState(false);
+  const savingOrderRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -101,6 +134,47 @@ export default function AccountsScreen() {
     }, [database, createVisible, showArchived]),
   );
 
+  async function handleReorder({
+    from,
+    to,
+  }: ReorderableListReorderEvent) {
+    if (
+      from === to ||
+      showArchived ||
+      status !== 'ready' ||
+      savingOrderRef.current
+    ) {
+      return;
+    }
+
+    savingOrderRef.current = true;
+    setSavingOrder(true);
+
+    const previousAccounts = accounts;
+    const reorderedAccounts = reorderItems(accounts, from, to);
+
+    setAccounts(reorderedAccounts);
+
+    try {
+      await saveAccountOrder(
+        database,
+        reorderedAccounts.map((account) => account.syncId),
+      );
+    } catch (error) {
+      console.warn('Failed to save account order', error);
+
+      setAccounts(previousAccounts);
+
+      Alert.alert(
+        translations.error,
+        translations.saveAccountOrderError,
+      );
+    } finally {
+      savingOrderRef.current = false;
+      setSavingOrder(false);
+    }
+  }
+
   return (
     <ScreenBackground>
       <SafeAreaView
@@ -112,7 +186,7 @@ export default function AccountsScreen() {
             title={translations.newAccount}
             nativeGlass
             rightSymbol="＋"
-            disabled={showArchived}
+            disabled={showArchived || savingOrder}
             onPress={() => {
               setEditingAccount(null);
               setCreateVisible(true);
@@ -132,12 +206,14 @@ export default function AccountsScreen() {
               ]}
               value={showArchived ? 'archived' : 'active'}
               onChange={(value) => {
-                setShowArchived(value === 'archived');
+                if (!savingOrderRef.current) {
+                  setShowArchived(value === 'archived');
+                }
               }}
             />
           </View>
         </View>
-        <FlatList
+        <ReorderableList
           data={status === 'ready' ? accounts : []}
           keyExtractor={(account) => account.syncId}
           contentContainerStyle={styles.content}
@@ -163,11 +239,22 @@ export default function AccountsScreen() {
               </Text>
             )
           }
+          dragEnabled={
+            !showArchived &&
+            !savingOrder &&
+            status === 'ready'
+          }
+          onReorder={(event) => void handleReorder(event)}
           renderItem={({ item }) => (
-            <AccountCard
+            <ReorderableAccountCard
               account={item}
               locale={locale}
+              canReorder={!showArchived && !savingOrder}
               onPress={() => {
+                if (savingOrderRef.current) {
+                  return;
+                }
+
                 setEditingAccount(item);
                 setCreateVisible(true);
               }}

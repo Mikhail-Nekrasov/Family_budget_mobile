@@ -35,8 +35,10 @@ export async function getAccounts(
   return database.getAllAsync<Account>(`
     SELECT ${ACCOUNT_COLUMNS}
     FROM accounts
+    INNER JOIN account_order
+      ON account_order.account_sync_id = accounts.sync_id
     WHERE archived_at IS NULL
-    ORDER BY name, sync_id
+    ORDER BY account_order.sort_order, accounts.sync_id
   `);
 }
 
@@ -96,30 +98,48 @@ export async function createAccount(
     archivedAt: null,
   };
 
-  await database.runAsync(
-    `
-      INSERT INTO accounts (
-        sync_id,
-        server_id,
-        server_version,
-        name,
-        description,
-        currency_code,
-        icon_key,
-        opening_balance_minor,
-        balance_minor
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-    account.syncId,
-    account.serverId,
-    account.serverVersion,
-    account.name,
-    account.description,
-    account.currencyCode,
-    account.iconKey,
-    account.openingBalanceMinor,
-    account.balanceMinor,
+  await database.withExclusiveTransactionAsync(
+    async (transaction) => {
+      await transaction.runAsync(
+        `
+          INSERT INTO accounts (
+            sync_id,
+            server_id,
+            server_version,
+            name,
+            description,
+            currency_code,
+            icon_key,
+            opening_balance_minor,
+            balance_minor
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        account.syncId,
+        account.serverId,
+        account.serverVersion,
+        account.name,
+        account.description,
+        account.currencyCode,
+        account.iconKey,
+        account.openingBalanceMinor,
+        account.balanceMinor,
+      );
+
+      await transaction.runAsync(
+        `
+          INSERT INTO account_order (
+            account_sync_id,
+            sort_order
+          )
+          SELECT
+            ?,
+            COALESCE(MAX(sort_order), -1) + 1
+          FROM account_order
+        `,
+        account.syncId,
+      );
+    },
   );
 
   return account;
@@ -215,4 +235,57 @@ export async function deleteLocalAccount(
       'Local account not found or already synchronized',
     );
   }
+}
+
+export async function saveAccountOrder(
+  database: SQLiteDatabase,
+  accountSyncIds: readonly string[],
+): Promise<void> {
+  const uniqueIds = new Set(accountSyncIds);
+
+  if (uniqueIds.size !== accountSyncIds.length) {
+    throw new Error('Account order contains duplicate IDs');
+  }
+
+  await database.withExclusiveTransactionAsync(
+    async (transaction) => {
+      const currentAccounts = await transaction.getAllAsync<{
+        syncId: string;
+        sortOrder: number;
+      }>(`
+        SELECT
+          accounts.sync_id AS syncId,
+          account_order.sort_order AS sortOrder
+        FROM accounts
+        INNER JOIN account_order
+          ON account_order.account_sync_id = accounts.sync_id
+        WHERE accounts.archived_at IS NULL
+        ORDER BY account_order.sort_order, accounts.sync_id
+      `);
+
+      const containsAllActiveAccounts =
+        currentAccounts.length === accountSyncIds.length &&
+        currentAccounts.every((account) =>
+          uniqueIds.has(account.syncId),
+        );
+
+      if (!containsAllActiveAccounts) {
+        throw new Error(
+          'Account order must contain all active accounts',
+        );
+      }
+
+      for (const [index, syncId] of accountSyncIds.entries()) {
+        await transaction.runAsync(
+          `
+            UPDATE account_order
+            SET sort_order = ?
+            WHERE account_sync_id = ?
+          `,
+          currentAccounts[index].sortOrder,
+          syncId,
+        );
+      }
+    },
+  );
 }

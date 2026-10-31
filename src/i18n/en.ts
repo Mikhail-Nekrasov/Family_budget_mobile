@@ -86,6 +86,8 @@ export const en = {
   categoryName: 'Category name',
   categoryNameRequired: 'Enter a category name',
   saveCategoryError: 'Could not save category',
+
+  saveAccountOrderError: 'Could not save account order',
 };
 
 export type Messages = typeof en;

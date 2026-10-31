@@ -88,4 +88,6 @@ export const ru: Messages = {
   categoryName: 'Название категории',
   categoryNameRequired: 'Введите название категории',
   saveCategoryError: 'Не удалось сохранить категорию',
+
+  saveAccountOrderError: 'Не удалось сохранить порядок счетов',
 };
