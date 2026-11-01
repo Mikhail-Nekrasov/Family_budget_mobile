@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 5;
+const DATABASE_VERSION = 7;
 
 export async function initializeDatabase(
   database: SQLiteDatabase,
@@ -92,6 +92,71 @@ export async function initializeDatabase(
           sync_id,
           ROW_NUMBER() OVER (ORDER BY rowid) - 1
         FROM accounts;
+      `);
+    }
+
+    if (currentVersion < 6) {
+      await database.execAsync(`
+        CREATE TABLE account_order_sync_state (
+          id INTEGER PRIMARY KEY NOT NULL
+            CHECK (id = 1),
+
+          server_version INTEGER
+            CHECK (
+              server_version IS NULL
+              OR server_version >= 0
+            ),
+
+          local_revision INTEGER NOT NULL DEFAULT 0
+            CHECK (local_revision >= 0),
+
+          synced_revision INTEGER NOT NULL DEFAULT 0
+            CHECK (
+              synced_revision >= 0
+              AND synced_revision <= local_revision
+            )
+        );
+
+        INSERT INTO account_order_sync_state (
+          id,
+          server_version,
+          local_revision,
+          synced_revision
+        )
+        SELECT
+          1,
+          NULL,
+          CASE
+            WHEN EXISTS (SELECT 1 FROM account_order)
+            THEN 1
+            ELSE 0
+          END,
+          0;
+      `);
+    }
+
+    if (currentVersion < 7) {
+      await database.execAsync(`
+        ALTER TABLE account_order_sync_state
+          ADD COLUMN server_owner_username TEXT;
+
+        CREATE TABLE pending_account_order_command (
+          id INTEGER PRIMARY KEY NOT NULL
+            CHECK (id = 1),
+
+          command_id TEXT NOT NULL UNIQUE,
+
+          owner_username TEXT NOT NULL
+            CHECK (length(trim(owner_username)) > 0),
+
+          local_revision INTEGER NOT NULL
+            CHECK (local_revision >= 0),
+
+          expected_version INTEGER NOT NULL
+            CHECK (expected_version >= 0),
+
+          request_body TEXT NOT NULL
+        );
       `);
     }
 

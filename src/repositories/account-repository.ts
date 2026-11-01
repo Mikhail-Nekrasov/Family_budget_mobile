@@ -2,6 +2,7 @@ import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { Account } from '@/models/account';
+import { markAccountOrderChanged } from './account-order-sync-repository';
 
 export type CreateAccountInput = {
   name: string;
@@ -139,6 +140,8 @@ export async function createAccount(
         `,
         account.syncId,
       );
+
+      await markAccountOrderChanged(transaction);
     },
   );
 
@@ -221,20 +224,26 @@ export async function deleteLocalAccount(
   database: SQLiteDatabase,
   syncId: string,
 ): Promise<void> {
-  const result = await database.runAsync(
-    `
-      DELETE FROM accounts
-      WHERE sync_id = ?
-        AND server_id IS NULL
-    `,
-    syncId,
-  );
+  await database.withExclusiveTransactionAsync(
+    async (transaction) => {
+      const result = await transaction.runAsync(
+        `
+          DELETE FROM accounts
+          WHERE sync_id = ?
+            AND server_id IS NULL
+        `,
+        syncId,
+      );
 
-  if (result.changes !== 1) {
-    throw new Error(
-      'Local account not found or already synchronized',
-    );
-  }
+      if (result.changes !== 1) {
+        throw new Error(
+          'Local account not found or already synchronized',
+        );
+      }
+
+      await markAccountOrderChanged(transaction);
+    },
+  );
 }
 
 export async function saveAccountOrder(
@@ -275,6 +284,15 @@ export async function saveAccountOrder(
         );
       }
 
+      const orderChanged = currentAccounts.some(
+        (account, index) =>
+          account.syncId !== accountSyncIds[index],
+      );
+
+      if (!orderChanged) {
+        return;
+      }
+
       for (const [index, syncId] of accountSyncIds.entries()) {
         await transaction.runAsync(
           `
@@ -286,6 +304,8 @@ export async function saveAccountOrder(
           syncId,
         );
       }
+
+      await markAccountOrderChanged(transaction);
     },
   );
 }

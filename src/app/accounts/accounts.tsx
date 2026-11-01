@@ -28,20 +28,6 @@ import { getAccounts, getArchivedAccounts, saveAccountOrder, } from '@/repositor
 
 type LoadStatus = 'loading' | 'ready' | 'error';
 
-function formatBalance(account: Account, locale: string): string {
-  const formatter = new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: account.currencyCode,
-  });
-
-  const fractionDigits =
-    formatter.resolvedOptions().maximumFractionDigits ?? 2;
-
-  return formatter.format(
-    account.balanceMinor / 10 ** fractionDigits,
-  );
-}
-
 type ReorderableAccountCardProps = {
   account: Account;
   locale: string;
