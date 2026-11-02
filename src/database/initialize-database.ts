@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 7;
+const DATABASE_VERSION = 9;
 
 export async function initializeDatabase(
   database: SQLiteDatabase,
@@ -157,6 +157,58 @@ export async function initializeDatabase(
 
           request_body TEXT NOT NULL
         );
+      `);
+    }
+
+    if (currentVersion < 8) {
+      await database.execAsync(`
+        CREATE TABLE entries (
+          sync_id TEXT PRIMARY KEY NOT NULL,
+          server_id INTEGER,
+          server_version INTEGER,
+
+          title TEXT NOT NULL
+            CHECK (length(trim(title)) BETWEEN 1 AND 255),
+
+          type TEXT NOT NULL
+            CHECK (type IN ('EXPENSE', 'INCOME')),
+
+          amount_minor INTEGER NOT NULL
+            CHECK (
+              typeof(amount_minor) = 'integer'
+              AND amount_minor > 0
+              AND amount_minor <= 9007199254740991
+            ),
+
+          date_time TEXT NOT NULL,
+          description TEXT,
+          account_sync_id TEXT NOT NULL,
+          category_sync_id TEXT NOT NULL,
+
+          FOREIGN KEY (account_sync_id)
+            REFERENCES accounts(sync_id)
+            ON DELETE RESTRICT,
+
+          FOREIGN KEY (category_sync_id)
+            REFERENCES categories(sync_id)
+            ON DELETE RESTRICT
+        );
+
+        CREATE INDEX idx_entries_type_date
+          ON entries(type, date_time DESC, sync_id);
+
+        CREATE INDEX idx_entries_account
+          ON entries(account_sync_id);
+
+        CREATE INDEX idx_entries_category
+          ON entries(category_sync_id);
+      `);
+    }
+
+    if (currentVersion < 9) {
+      await database.execAsync(`
+        ALTER TABLE categories
+        ADD COLUMN icon_key TEXT NOT NULL DEFAULT 'category';
       `);
     }
 

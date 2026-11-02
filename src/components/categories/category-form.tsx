@@ -1,27 +1,41 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRef, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-    useColorScheme,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  useColorScheme
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
+import { CategoryIcon } from '@/components/categories/category-icon';
+import { CompactIconSelect } from '@/components/compact-icon-select';
 import { ScreenBackground } from '@/components/screen-background';
 import { useLanguage } from '@/hooks/use-language';
+import type { Category } from '@/models/category';
 import type { EntryType } from '@/models/entry-type';
 import { createCategory } from '@/repositories/category-repository';
 
+const CATEGORY_ICON_KEYS = [
+  'category',
+  'groceries',
+  'housing',
+  'transport',
+  'food',
+  'salary',
+  'leisure',
+  'health',
+] as const;
+
 type CategoryFormProps = {
   type: EntryType;
-  onSaved: () => void;
+  onSaved: (category: Category) => void;
   onCancel: () => void;
 };
 
@@ -34,6 +48,7 @@ export function CategoryForm({
   const { translations } = useLanguage();
 
   const [name, setName] = useState('');
+  const [iconKey, setIconKey] = useState<string>('category');
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
 
@@ -69,10 +84,13 @@ export function CategoryForm({
     savingRef.current = true;
     setSaving(true);
 
+    let createdCategory: Category;
+
     try {
-      await createCategory(database, {
+      createdCategory = await createCategory(database, {
         name,
         type,
+        iconKey,
       });
     } catch (error) {
       console.warn('Failed to save category', error);
@@ -87,7 +105,7 @@ export function CategoryForm({
       setSaving(false);
     }
 
-    onSaved();
+    onSaved(createdCategory);
   }
 
   return (
@@ -143,6 +161,33 @@ export function CategoryForm({
                   borderColor: palette.border,
                 },
               ]}
+            />
+
+            <Text
+              style={[
+                styles.label,
+                { color: palette.text },
+              ]}
+            >
+              {translations.categoryIcon}
+            </Text>
+
+            <CompactIconSelect
+              title={translations.categoryIcon}
+              options={CATEGORY_ICON_KEYS.map((key) => ({
+                value: key,
+                label: translations.categoryIcons[key],
+              }))}
+              value={iconKey}
+              onChange={setIconKey}
+              disabled={saving}
+              renderIcon={(key, color, size) => (
+                <CategoryIcon
+                  iconKey={key}
+                  color={color}
+                  size={size}
+                />
+              )}
             />
 
             <View style={styles.actions}>
@@ -201,5 +246,21 @@ const styles = StyleSheet.create({
   actions: {
     gap: 12,
     marginTop: 16,
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -4,
+  },
+  iconCell: {
+    width: '25%',
+    padding: 4,
+  },
+  iconOption: {
+    minHeight: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
   },
 });

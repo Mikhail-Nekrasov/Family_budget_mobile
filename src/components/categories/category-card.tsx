@@ -7,6 +7,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
+import { CategoryIcon } from '@/components/categories/category-icon';
 import type { Category } from '@/models/category';
 
 type CategoryCardProps = {
@@ -88,6 +89,12 @@ export function CategoryCard({
             borderBottomColor: palette.edgeShadow,
           },
         ]}
+      />
+
+      <CategoryIcon
+        iconKey={category.iconKey}
+        color={palette.text}
+        size={24}
       />
 
       <Text

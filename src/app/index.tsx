@@ -1,14 +1,21 @@
 import { CategoryChart, type ChartSegment } from '@/components/category-chart';
+import { EntryForm } from '@/components/entries/entry-form';
 import { EntryCard } from '@/components/entry-card';
 import { HomeFilters } from '@/components/home-filters';
 import { MenuButton } from '@/components/menu-button';
 import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
-import { accounts, categories, demoEntries, formatAmount, type EntryType } from '@/data/home-demo';
+import {
+  accounts,
+  categories,
+  demoEntries,
+  formatAmount,
+} from '@/data/home-demo';
 import { useLanguage } from '@/hooks/use-language';
+import type { EntryType } from '@/models/entry-type';
 import { useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const { translations, locale } = useLanguage();
@@ -16,6 +23,7 @@ export default function HomeScreen() {
   const [period, setPeriod] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [accountIds, setAccountIds] = useState<string[]>([]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const [createVisible, setCreateVisible] = useState(false);
   const dark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const palette = dark
@@ -93,14 +101,7 @@ export default function HomeScreen() {
                   ? translations.addExpense
                   : translations.addIncome
               }
-              onPress={() =>
-                Alert.alert(
-                  type === 'EXPENSE'
-                    ? translations.newExpense
-                    : translations.newIncome,
-                  translations.createEntryPlaceholder,
-                )
-              }
+              onPress={() => setCreateVisible(true)}
               style={[styles.addButton, { backgroundColor: palette.accent }]}>
               <Text style={[styles.addText, { color: palette.background }]}>＋</Text>
             </Pressable>
@@ -143,6 +144,30 @@ export default function HomeScreen() {
           }
         } />
       </SafeAreaView>
+
+      <Modal
+        visible={createVisible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        backdropColor={palette.background}
+        onRequestClose={() => setCreateVisible(false)}
+      >
+        {createVisible && (
+          <SafeAreaProvider
+            style={{
+              flex: 1,
+              backgroundColor: palette.background,
+            }}
+          >
+            <EntryForm
+              type={type}
+              onSaved={() => setCreateVisible(false)}
+              onCancel={() => setCreateVisible(false)}
+            />
+          </SafeAreaProvider>
+        )}
+      </Modal>
+
     </ScreenBackground>
   );
 }

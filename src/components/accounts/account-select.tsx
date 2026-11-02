@@ -1,0 +1,270 @@
+import { useState } from 'react';
+import {
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme,
+} from 'react-native';
+
+import { AccountIcon } from '@/components/accounts/account-icon';
+import { useLanguage } from '@/hooks/use-language';
+import type { Account } from '@/models/account';
+
+type AccountSelectProps = {
+  accounts: readonly Account[];
+  value: string | null;
+  onChange: (syncId: string) => void;
+  disabled?: boolean;
+};
+
+export function AccountSelect({
+  accounts,
+  value,
+  onChange,
+  disabled = false,
+}: AccountSelectProps) {
+  const { translations, locale } = useLanguage();
+  const dark = useColorScheme() === 'dark';
+  const [expanded, setExpanded] = useState(false);
+
+  const palette = dark
+    ? {
+        card: '#1C2432',
+        text: '#F0F3FA',
+        muted: '#A8B3C5',
+        border: '#333F52',
+        accent: '#A0B8FF',
+        selected: 'rgba(160, 184, 255, 0.12)',
+      }
+    : {
+        card: '#FFFFFF',
+        text: '#192238',
+        muted: '#6C7890',
+        border: '#E0E5EE',
+        accent: '#365BBC',
+        selected: 'rgba(54, 91, 188, 0.08)',
+      };
+
+  const selectedAccount = accounts.find(
+    (account) => account.syncId === value,
+  );
+
+  function formatBalance(account: Account): string {
+    const formatter = new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: account.currencyCode,
+      currencyDisplay: 'code',
+    });
+
+    const fractionDigits =
+      formatter.resolvedOptions().maximumFractionDigits ?? 2;
+
+    return formatter.format(
+      account.balanceMinor / 10 ** fractionDigits,
+    );
+  }
+
+  function selectAccount(syncId: string) {
+    onChange(syncId);
+    setExpanded(false);
+  }
+
+  return (
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={
+          selectedAccount
+            ? `${translations.entryAccount}: ${selectedAccount.name}, ${selectedAccount.currencyCode}`
+            : translations.selectAccount
+        }
+        accessibilityState={{
+          expanded: expanded && !disabled,
+          disabled,
+        }}
+        disabled={disabled}
+        onPress={() => {
+          Keyboard.dismiss();
+          setExpanded((current) => !current);
+        }}
+        style={({ pressed }) => [
+          styles.field,
+          {
+            backgroundColor: palette.card,
+            borderColor: palette.border,
+            opacity: disabled ? 0.45 : pressed ? 0.75 : 1,
+          },
+        ]}
+      >
+        {selectedAccount && (
+          <AccountIcon
+            iconKey={selectedAccount.iconKey}
+            color={palette.text}
+            size={24}
+          />
+        )}
+
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.name,
+            { color: palette.text },
+          ]}
+        >
+          {selectedAccount?.name ?? translations.selectAccount}
+        </Text>
+
+        {selectedAccount && (
+          <Text
+            style={[
+              styles.balance,
+              { color: palette.text },
+            ]}
+          >
+            {formatBalance(selectedAccount)}
+          </Text>
+        )}
+
+        <Text
+          accessible={false}
+          style={[
+            styles.arrow,
+            { color: palette.accent },
+          ]}
+        >
+          {expanded && !disabled ? '▴' : '▾'}
+        </Text>
+      </Pressable>
+
+      {expanded && !disabled && (
+        <ScrollView
+          nestedScrollEnabled
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator
+          style={[
+            styles.dropdown,
+            {
+              backgroundColor: palette.card,
+              borderColor: palette.border,
+            },
+          ]}
+        >
+          {accounts.map((account) => {
+            const selected = account.syncId === value;
+
+            return (
+              <Pressable
+                key={account.syncId}
+                accessibilityRole="radio"
+                accessibilityLabel={
+                  `${account.name}, ${account.currencyCode}`
+                }
+                accessibilityState={{ checked: selected }}
+                onPress={() => selectAccount(account.syncId)}
+                style={({ pressed }) => [
+                  styles.option,
+                  {
+                    backgroundColor: selected
+                      ? palette.selected
+                      : 'transparent',
+                    opacity: pressed ? 0.75 : 1,
+                  },
+                ]}
+              >
+                <AccountIcon
+                  iconKey={account.iconKey}
+                  color={
+                    selected ? palette.accent : palette.text
+                  }
+                  size={24}
+                />
+
+                <Text
+                  numberOfLines={2}
+                  style={[
+                    styles.name,
+                    {
+                      color: selected
+                        ? palette.accent
+                        : palette.text,
+                    },
+                  ]}
+                >
+                  {account.name}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.balance,
+                    { color: palette.text },
+                  ]}
+                >
+                  {formatBalance(account)}
+                </Text>
+
+                <Text
+                  accessible={false}
+                  style={[
+                    styles.check,
+                    { color: palette.accent },
+                  ]}
+                >
+                  {selected ? '✓' : ''}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  field: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 52,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  name: {
+    flex: 1,
+    fontSize: 16,
+  },
+  arrow: {
+    fontSize: 20,
+  },
+  dropdown: {
+    maxHeight: 240,
+    marginTop: 6,
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 52,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  check: {
+    width: 20,
+    textAlign: 'center',
+    fontSize: 18,
+  },
+  balance: {
+    flexShrink: 1,
+    textAlign: 'right',
+    fontSize: 14,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+});

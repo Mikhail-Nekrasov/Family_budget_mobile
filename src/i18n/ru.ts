@@ -90,4 +90,37 @@ export const ru: Messages = {
   saveCategoryError: 'Не удалось сохранить категорию',
 
   saveAccountOrderError: 'Не удалось сохранить порядок счетов',
+
+  entryTitle: 'Название',
+  entryAmount: 'Сумма',
+  entryAccount: 'Счёт',
+  entryCategory: 'Категория',
+  entryTitleRequired: 'Введите название длиной до 255 символов',
+  entryAmountInvalid: 'Введите положительную сумму в валюте счёта',
+  entryOptionsError: 'Не удалось загрузить счета и категории',
+  entryOptionsRequired: 'Сначала создайте активный счёт и категорию',
+  saveEntryError: 'Не удалось сохранить операцию',
+
+  categoryIcon: 'Иконка категории',
+  categoryIcons: {
+    category: 'Общее',
+    groceries: 'Продукты',
+    housing: 'Жильё',
+    transport: 'Транспорт',
+    food: 'Еда',
+    salary: 'Работа',
+    leisure: 'Досуг',
+    health: 'Здоровье',
+  },
+
+  showAllOptions: 'Показать все',
+
+  select: 'Выбрать',
+
+  entryCategoryRequired: 'Выберите категорию',
+
+  selectAccount: 'Выберите счёт',
+
+  entryDate: 'Дата',
+  entryTime: 'Время',
 };

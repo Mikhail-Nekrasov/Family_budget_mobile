@@ -88,6 +88,39 @@ export const en = {
   saveCategoryError: 'Could not save category',
 
   saveAccountOrderError: 'Could not save account order',
+
+  entryTitle: 'Title',
+  entryAmount: 'Amount',
+  entryAccount: 'Account',
+  entryCategory: 'Category',
+  entryTitleRequired: 'Enter a title of up to 255 characters',
+  entryAmountInvalid: 'Enter a positive amount in the account currency',
+  entryOptionsError: 'Could not load accounts and categories',
+  entryOptionsRequired: 'Create an active account and a category first',
+  saveEntryError: 'Could not save the entry',
+
+  categoryIcon: 'Category icon',
+  categoryIcons: {
+    category: 'General',
+    groceries: 'Groceries',
+    housing: 'Housing',
+    transport: 'Transport',
+    food: 'Food',
+    salary: 'Work',
+    leisure: 'Leisure',
+    health: 'Health',
+  },
+  
+  showAllOptions: 'Show all',
+
+  select: 'Select',
+
+  entryCategoryRequired: 'Select a category',
+
+  selectAccount: 'Select an account',
+
+  entryDate: 'Date',
+  entryTime: 'Time',
 };
 
 export type Messages = typeof en;

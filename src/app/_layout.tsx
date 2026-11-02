@@ -5,12 +5,12 @@ import { SQLiteProvider } from 'expo-sqlite';
 import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { apiRequest } from '@/api/api-client';
+//import { apiRequest } from '@/api/api-client';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { initializeDatabase } from '@/database/initialize-database';
 import { useLanguage } from '@/hooks/use-language';
 import { LanguageProvider } from '@/i18n/language-provider';
-import { useEffect } from 'react';
+//import { useEffect } from 'react';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -31,23 +31,23 @@ function AppNavigation() {
   const colorScheme = useColorScheme();
   const { translations } = useLanguage();
 
-  useEffect(() => {
-    if (!__DEV__) {
-      return;
-    }
+  // useEffect(() => {
+  //   if (!__DEV__) {
+  //     return;
+  //   }
 
-    async function checkConnection() {
-      try {
-        await apiRequest('/api/exchange-rates');
+  //   async function checkConnection() {
+  //     try {
+  //       await apiRequest('/api/exchange-rates');
 
-        console.info('Backend connection successful');
-      } catch (error) {
-        console.warn('Backend connection failed', error);
-      }
-    }
+  //       console.info('Backend connection successful');
+  //     } catch (error) {
+  //       console.warn('Backend connection failed', error);
+  //     }
+  //   }
 
-    void checkConnection();
-  }, []);
+  //   void checkConnection();
+  // }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -90,4 +90,37 @@ export const fi: Messages = {
   saveCategoryError: 'Kategorian tallentaminen epäonnistui',
 
   saveAccountOrderError: 'Tilien järjestyksen tallentaminen epäonnistui',
+
+  entryTitle: 'Nimi',
+  entryAmount: 'Summa',
+  entryAccount: 'Tili',
+  entryCategory: 'Luokka',
+  entryTitleRequired: 'Anna enintään 255 merkin pituinen nimi',
+  entryAmountInvalid: 'Anna positiivinen summa tilin valuutassa',
+  entryOptionsError: 'Tilejä ja luokkia ei voitu ladata',
+  entryOptionsRequired: 'Luo ensin aktiivinen tili ja luokka',
+  saveEntryError: 'Tapahtumaa ei voitu tallentaa',
+
+  categoryIcon: 'Luokan kuvake',
+  categoryIcons: {
+    category: 'Yleinen',
+    groceries: 'Ruokaostokset',
+    housing: 'Asuminen',
+    transport: 'Liikenne',
+    food: 'Ruoka',
+    salary: 'Työ',
+    leisure: 'Vapaa-aika',
+    health: 'Terveys',
+  },
+  
+  showAllOptions: 'Näytä kaikki',
+
+  select: 'Valitse',
+
+  entryCategoryRequired: 'Valitse luokka',
+
+  selectAccount: 'Valitse tili',
+
+  entryDate: 'Päivämäärä',
+  entryTime: 'Kellonaika',
 };

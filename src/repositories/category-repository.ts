@@ -7,6 +7,7 @@ import type { EntryType } from '@/models/entry-type';
 export type CreateCategoryInput = {
   name: string;
   type: EntryType;
+  iconKey: string;
 };
 
 const CATEGORY_COLUMNS = `
@@ -14,6 +15,7 @@ const CATEGORY_COLUMNS = `
   server_id AS serverId,
   server_version AS serverVersion,
   name,
+  icon_key AS iconKey,
   type
 `;
 
@@ -51,9 +53,14 @@ export async function createCategory(
   input: CreateCategoryInput,
 ): Promise<Category> {
   const name = input.name.trim();
+  const iconKey = input.iconKey.trim();
 
   if (name.length === 0) {
     throw new Error('Category name is required');
+  }
+
+  if (iconKey.length === 0) {
+    throw new Error('Category icon is required');
   }
 
   if (input.type !== 'EXPENSE' && input.type !== 'INCOME') {
@@ -65,6 +72,7 @@ export async function createCategory(
     serverId: null,
     serverVersion: null,
     name,
+    iconKey,
     type: input.type,
   };
 
@@ -75,14 +83,16 @@ export async function createCategory(
         server_id,
         server_version,
         name,
+        icon_key,
         type
       )
-      VALUES (?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?)
     `,
     category.syncId,
     category.serverId,
     category.serverVersion,
     category.name,
+    category.iconKey,
     category.type,
   );
 

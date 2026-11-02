@@ -5,5 +5,6 @@ export type Category = {
   serverId: number | null;
   serverVersion: number | null;
   name: string;
+  iconKey: string;
   type: EntryType;
 };
