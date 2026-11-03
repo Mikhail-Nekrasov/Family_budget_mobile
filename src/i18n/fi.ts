@@ -95,7 +95,7 @@ export const fi: Messages = {
   entryAmount: 'Summa',
   entryAccount: 'Tili',
   entryCategory: 'Luokka',
-  entryTitleRequired: 'Anna enintään 255 merkin pituinen nimi',
+  entryTitleRequired: 'Anna nimi',
   entryAmountInvalid: 'Anna positiivinen summa tilin valuutassa',
   entryOptionsError: 'Tilejä ja luokkia ei voitu ladata',
   entryOptionsRequired: 'Luo ensin aktiivinen tili ja luokka',
@@ -121,6 +121,11 @@ export const fi: Messages = {
 
   selectAccount: 'Valitse tili',
 
-  entryDate: 'Päivämäärä',
-  entryTime: 'Kellonaika',
+  entryDate: 'Päivä',
+  entryTime: 'Aika',
+
+  today: 'Tänään',
+  now: 'Nyt',
+
+  ok: 'OK',
 };

@@ -1,5 +1,5 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ComponentRef } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -16,7 +16,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountIcon } from '@/components/accounts/account-icon';
 import { AppButton } from '@/components/app-button';
+import { FieldError } from '@/components/field-error';
 import { ScreenBackground } from '@/components/screen-background';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
 import {
@@ -39,6 +41,19 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
   const { translations } = useLanguage();
 
   const [name, setName] = useState(account?.name ?? '');
+
+  const nameRef = useRef<ComponentRef<typeof TextInput>>(null);
+
+  const openingBalanceRef =
+    useRef<ComponentRef<typeof TextInput>>(null);
+
+  const {
+    errors,
+    clearError,
+    showFieldError,
+    showFormError,
+  } = useFormErrors<'name' | 'openingBalance'>();
+
   const [description, setDescription] = useState(
     account?.description ?? '',
   );
@@ -58,6 +73,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
         text: '#F0F3FA',
         border: '#333F52',
         accent: '#A0B8FF',
+        error: '#FF8A80',
       }
     : {
         background: '#F5F6F9',
@@ -65,6 +81,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
         text: '#192238',
         border: '#E0E5EE',
         accent: '#365BBC',
+        error: '#C62828',
       };
 
   const inputStyle = [
@@ -87,9 +104,10 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
     }
 
     if (name.trim().length === 0) {
-      Alert.alert(
-        translations.error,
+      showFieldError(
+        'name',
         translations.accountNameRequired,
+        nameRef,
       );
       return;
     }
@@ -99,9 +117,10 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
       : parseAmountToMinor(openingBalance, 2);
 
     if (openingBalanceMinor === null) {
-      Alert.alert(
-        translations.error,
+      showFieldError(
+        'openingBalance',
         translations.invalidAmount,
+        openingBalanceRef,
       );
       return;
     }
@@ -128,10 +147,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
     } catch (error) {
       console.warn('Failed to save account', error);
 
-      Alert.alert(
-        translations.error,
-        translations.saveAccountError,
-      );
+      showFormError(translations.saveAccountError);
       return;
     } finally {
       savingRef.current = false;
@@ -207,6 +223,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
           <ScrollView
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           >
             <Text style={[styles.title, { color: palette.text }]}>
               {account
@@ -219,12 +236,25 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
             </Text>
 
             <TextInput
+              ref={nameRef}
               accessibilityLabel={translations.accountName}
               value={name}
-              onChangeText={setName}
+              onChangeText={(text) => {
+                setName(text);
+                clearError('name');
+              }}
               editable={!saving}
-              style={inputStyle}
+              returnKeyType="done"
+              submitBehavior="blurAndSubmit"
+              style={[
+                inputStyle,
+                errors.name && {
+                  borderColor: palette.error,
+                },
+              ]}
             />
+
+            <FieldError message={errors.name} />
 
             <Text style={[styles.label, { color: palette.text }]}>
               {translations.description}
@@ -247,14 +277,25 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
                 </Text>
 
                 <TextInput
+                  ref={openingBalanceRef}
                   accessibilityLabel={translations.openingBalance}
                   value={openingBalance}
-                  onChangeText={setOpeningBalance}
+                  onChangeText={(text) => {
+                    setOpeningBalance(text);
+                    clearError('openingBalance');
+                  }}
                   editable={!saving}
                   keyboardType="numbers-and-punctuation"
                   autoCorrect={false}
-                  style={inputStyle}
+                  style={[
+                    inputStyle,
+                    errors.openingBalance && {
+                      borderColor: palette.error,
+                    },
+                  ]}
                 />
+
+                <FieldError message={errors.openingBalance} />
               </>
             )}
 

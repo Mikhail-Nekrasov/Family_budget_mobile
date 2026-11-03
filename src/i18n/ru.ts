@@ -95,7 +95,7 @@ export const ru: Messages = {
   entryAmount: 'Сумма',
   entryAccount: 'Счёт',
   entryCategory: 'Категория',
-  entryTitleRequired: 'Введите название длиной до 255 символов',
+  entryTitleRequired: 'Введите название',
   entryAmountInvalid: 'Введите положительную сумму в валюте счёта',
   entryOptionsError: 'Не удалось загрузить счета и категории',
   entryOptionsRequired: 'Сначала создайте активный счёт и категорию',
@@ -123,4 +123,9 @@ export const ru: Messages = {
 
   entryDate: 'Дата',
   entryTime: 'Время',
+
+  today: 'Сегодня',
+  now: 'Сейчас',
+
+  ok: 'ОК',
 };

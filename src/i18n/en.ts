@@ -93,7 +93,7 @@ export const en = {
   entryAmount: 'Amount',
   entryAccount: 'Account',
   entryCategory: 'Category',
-  entryTitleRequired: 'Enter a title of up to 255 characters',
+  entryTitleRequired: 'Enter a title',
   entryAmountInvalid: 'Enter a positive amount in the account currency',
   entryOptionsError: 'Could not load accounts and categories',
   entryOptionsRequired: 'Create an active account and a category first',
@@ -121,6 +121,11 @@ export const en = {
 
   entryDate: 'Date',
   entryTime: 'Time',
+
+  today: 'Today',
+  now: 'Now',
+
+  ok: 'OK',
 };
 
 export type Messages = typeof en;

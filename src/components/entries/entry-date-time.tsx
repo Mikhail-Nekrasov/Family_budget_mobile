@@ -1,14 +1,23 @@
 import ExpoDateTimePicker from '@expo/ui/community/datetime-picker';
 import { useState } from 'react';
 import {
+  Keyboard,
+  Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
   useColorScheme,
 } from 'react-native';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+} from 'react-native-safe-area-context';
 
+import { AppButton } from '@/components/app-button';
+import { ScreenBackground } from '@/components/screen-background';
 import { useLanguage } from '@/hooks/use-language';
 
 type EntryDateTimeProps = {
@@ -27,147 +36,279 @@ export function EntryDateTime({
   const { translations, locale } = useLanguage();
   const dark = useColorScheme() === 'dark';
 
-  const [androidMode, setAndroidMode] =
-    useState<PickerMode | null>(null);
+  const [mode, setMode] = useState<PickerMode | null>(null);
+  const [draft, setDraft] = useState(() => new Date(value.getTime()));
 
   const palette = dark
     ? {
+        background: '#111722',
         card: '#1C2432',
         text: '#F0F3FA',
         border: '#333F52',
         accent: '#A0B8FF',
       }
     : {
+        background: '#F5F6F9',
         card: '#FFFFFF',
         text: '#192238',
         border: '#E0E5EE',
         accent: '#365BBC',
       };
 
-  function updateValue(mode: PickerMode, selected: Date) {
-    const next = new Date(value.getTime());
-
-    if (mode === 'date') {
-      next.setFullYear(
-        selected.getFullYear(),
-        selected.getMonth(),
-        selected.getDate(),
-      );
-    } else {
-      next.setHours(
-        selected.getHours(),
-        selected.getMinutes(),
-      );
+  function openPicker(nextMode: PickerMode) {
+    if (disabled) {
+      return;
     }
 
-    next.setSeconds(0, 0);
-    onChange(next);
+    Keyboard.dismiss();
+    setDraft(new Date(value.getTime()));
+    setMode(nextMode);
   }
 
-  function formatValue(mode: PickerMode): string {
+  function closePicker() {
+    setMode(null);
+  }
+
+  function updateDraft(selected: Date) {
+    setDraft((current) => {
+      const next = new Date(current.getTime());
+
+      if (mode === 'date') {
+        next.setFullYear(
+          selected.getFullYear(),
+          selected.getMonth(),
+          selected.getDate(),
+        );
+      } else {
+        next.setHours(
+          selected.getHours(),
+          selected.getMinutes(),
+        );
+      }
+
+      next.setSeconds(0, 0);
+      return next;
+    });
+  }
+
+  function selectToday() {
+    const today = new Date();
+
+    setDraft((current) => {
+      const next = new Date(current.getTime());
+
+      next.setFullYear(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+      );
+
+      return next;
+    });
+  }
+
+  function selectNow() {
+    const now = new Date();
+
+    setDraft((current) => {
+      const next = new Date(current.getTime());
+
+      next.setHours(
+        now.getHours(),
+        now.getMinutes(),
+        0,
+        0,
+      );
+
+      return next;
+    });
+  }
+
+  function confirmSelection() {
+    if (disabled) {
+      return;
+    }
+
+    onChange(new Date(draft.getTime()));
+    closePicker();
+  }
+
+  function formatValue(
+    date: Date,
+    pickerMode: PickerMode,
+  ): string {
     return new Intl.DateTimeFormat(
       locale,
-      mode === 'date'
+      pickerMode === 'date'
         ? {
-            day: 'numeric',
-            month: 'long',
+            day: '2-digit',
+            month: '2-digit',
             year: 'numeric',
           }
         : {
             hour: '2-digit',
             minute: '2-digit',
           },
-    ).format(value);
+    ).format(date);
   }
 
   return (
-    <View style={styles.container}>
-      {(['date', 'time'] as const).map((mode) => {
-        const label = mode === 'date'
-          ? translations.entryDate
-          : translations.entryTime;
+    <>
+      <View style={styles.container}>
+        {(['date', 'time'] as const).map((pickerMode) => {
+          const label = pickerMode === 'date'
+            ? translations.entryDate
+            : translations.entryTime;
 
-        return (
-          <View
-            key={mode}
-            style={[
-              styles.row,
-              {
-                flex: mode === 'date' ? 1.5 : 1,
-                backgroundColor: palette.card,
-                borderColor: palette.border,
-                opacity: disabled ? 0.45 : 1,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.label,
-                { color: palette.text },
+          return (
+            <Pressable
+              key={pickerMode}
+              accessibilityRole="button"
+              accessibilityLabel={
+                `${label}: ${formatValue(value, pickerMode)}`
+              }
+              accessibilityState={{ disabled }}
+              disabled={disabled}
+              onPress={() => openPicker(pickerMode)}
+              style={({ pressed }) => [
+                styles.field,
+                {
+                  flex: pickerMode === 'date' ? 1.5 : 1,
+                  backgroundColor: palette.card,
+                  borderColor: palette.border,
+                  opacity: disabled ? 0.45 : pressed ? 0.75 : 1,
+                },
               ]}
             >
-              {label}
-            </Text>
-
-            {Platform.OS === 'ios' ? (
-              <ExpoDateTimePicker
-                value={value}
-                mode={mode}
-                display="compact"
-                locale={locale.replace(/-/g, '_')}
-                accentColor={palette.accent}
-                disabled={disabled}
-                onValueChange={(_, selectedDate) => {
-                  updateValue(mode, selectedDate);
-                }}
-              />
-            ) : (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={
-                  `${label}: ${formatValue(mode)}`
-                }
-                disabled={disabled}
-                onPress={() => setAndroidMode(mode)}
-                style={({ pressed }) => [
-                  styles.valueButton,
-                  { opacity: pressed ? 0.75 : 1 },
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.label,
+                  { color: palette.text },
                 ]}
               >
-                <Text style={{ color: palette.accent }}>
-                  {formatValue(mode)}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        );
-      })}
+                {label}
+              </Text>
 
-      {Platform.OS === 'android' &&
-        androidMode !== null &&
-        !disabled && (
-          <ExpoDateTimePicker
-            value={value}
-            mode={androidMode}
-            presentation="dialog"
-            accentColor={palette.accent}
-            onValueChange={(_, selectedDate) => {
-              updateValue(androidMode, selectedDate);
-              setAndroidMode(null);
-            }}
-            onDismiss={() => setAndroidMode(null)}
-          />
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+                style={[
+                  styles.value,
+                  { color: palette.accent },
+                ]}
+              >
+                {formatValue(value, pickerMode)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Modal
+        visible={mode !== null}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        backdropColor={palette.background}
+        onRequestClose={closePicker}
+      >
+        {mode !== null && (
+          <SafeAreaProvider
+            style={[
+              styles.screen,
+              { backgroundColor: palette.background },
+            ]}
+          >
+            <ScreenBackground>
+              <SafeAreaView style={styles.screen}>
+                <ScrollView
+                  contentContainerStyle={styles.content}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  <Text
+                    style={[
+                      styles.title,
+                      { color: palette.text },
+                    ]}
+                  >
+                    {mode === 'date'
+                      ? translations.entryDate
+                      : translations.entryTime}
+                  </Text>
+
+                  <View
+                    style={[
+                      styles.pickerPanel,
+                      { backgroundColor: palette.card },
+                    ]}
+                  >
+                    <ExpoDateTimePicker
+                      value={draft}
+                      mode={mode}
+                      presentation="inline"
+                      display={
+                        Platform.OS === 'ios'
+                          ? mode === 'date'
+                            ? 'inline'
+                            : 'spinner'
+                          : 'default'
+                      }
+                      locale={locale.replace(/-/g, '_')}
+                      accentColor={palette.accent}
+                      onValueChange={(_, selectedDate) => {
+                        updateDraft(selectedDate);
+                      }}
+                    />
+                  </View>
+
+                  <AppButton
+                    title={
+                      mode === 'date'
+                        ? translations.today
+                        : translations.now
+                    }
+                    nativeGlass
+                    onPress={
+                      mode === 'date'
+                        ? selectToday
+                        : selectNow
+                    }
+                  />
+                </ScrollView>
+
+                <View style={styles.actions}>
+                  <AppButton
+                    title={translations.select}
+                    nativeGlass
+                    disabled={disabled}
+                    onPress={confirmSelection}
+                  />
+
+                  <AppButton
+                    title={translations.cancel}
+                    nativeGlass
+                    onPress={closePicker}
+                  />
+                </View>
+              </SafeAreaView>
+            </ScreenBackground>
+          </SafeAreaProvider>
         )}
-    </View>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   container: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
-  row: {
+  field: {
     flexDirection: 'row',
     minWidth: 0,
     alignItems: 'center',
@@ -175,18 +316,35 @@ const styles = StyleSheet.create({
     gap: 6,
     minHeight: 48,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderWidth: 1,
     borderRadius: 12,
   },
   label: {
-    flexShrink: 0,
+    flexShrink: 1,
     fontSize: 14,
     fontWeight: '600',
   },
-  valueButton: {
-    minHeight: 36,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
+  value: {
+    flexShrink: 1,
+    textAlign: 'right',
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
+  },
+  content: {
+    padding: 20,
+    gap: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '600',
+  },
+  pickerPanel: {
+    padding: 8,
+    borderRadius: 16,
+  },
+  actions: {
+    padding: 20,
+    gap: 12,
   },
 });

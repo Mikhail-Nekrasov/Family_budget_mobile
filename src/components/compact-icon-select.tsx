@@ -68,6 +68,7 @@ export function CompactIconSelect({
         border: '#333F52',
         accent: '#A0B8FF',
         selected: 'rgba(160, 184, 255, 0.12)',
+        card: '#1C2432',
       }
     : {
         background: '#F5F6F9',
@@ -75,6 +76,7 @@ export function CompactIconSelect({
         border: '#E0E5EE',
         accent: '#365BBC',
         selected: 'rgba(54, 91, 188, 0.08)',
+        card: '#FFFFFF',
       };
 
   const previewOptions: IconSelectOption[] =
@@ -174,9 +176,7 @@ export function CompactIconSelect({
               borderColor: selected
                 ? palette.accent
                 : palette.border,
-              backgroundColor: selected
-                ? palette.selected
-                : 'transparent',
+              backgroundColor: palette.card,
             },
           ]}
         >
@@ -385,11 +385,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   iconBox: {
-    width: '100%',
-    minHeight: 56,
+    width: 56,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: 28,
     borderWidth: 1,
   },
   optionLabel: {

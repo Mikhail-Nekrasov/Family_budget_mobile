@@ -1,7 +1,6 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ComponentRef } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,7 +15,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/app-button';
 import { CategoryIcon } from '@/components/categories/category-icon';
 import { CompactIconSelect } from '@/components/compact-icon-select';
+import { FieldError } from '@/components/field-error';
 import { ScreenBackground } from '@/components/screen-background';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import type { Category } from '@/models/category';
 import type { EntryType } from '@/models/entry-type';
@@ -48,6 +49,16 @@ export function CategoryForm({
   const { translations } = useLanguage();
 
   const [name, setName] = useState('');
+
+  const nameRef = useRef<ComponentRef<typeof TextInput>>(null);
+
+  const {
+    errors,
+    clearError,
+    showFieldError,
+    showFormError,
+  } = useFormErrors<'name'>();
+
   const [iconKey, setIconKey] = useState<string>('category');
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
@@ -60,12 +71,14 @@ export function CategoryForm({
         text: '#F0F3FA',
         muted: '#A8B3C5',
         border: '#333F52',
+        error: '#FF8A80',
       }
     : {
         card: '#FFFFFF',
         text: '#192238',
         muted: '#6C7890',
         border: '#E0E5EE',
+        error: '#C62828',
       };
 
   async function saveCategory() {
@@ -74,9 +87,10 @@ export function CategoryForm({
     }
 
     if (name.trim().length === 0) {
-      Alert.alert(
-        translations.error,
+      showFieldError(
+        'name',
         translations.categoryNameRequired,
+        nameRef,
       );
       return;
     }
@@ -95,10 +109,7 @@ export function CategoryForm({
     } catch (error) {
       console.warn('Failed to save category', error);
 
-      Alert.alert(
-        translations.error,
-        translations.saveCategoryError,
-      );
+      showFormError(translations.saveCategoryError);
       return;
     } finally {
       savingRef.current = false;
@@ -118,6 +129,7 @@ export function CategoryForm({
           <ScrollView
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           >
             <Text
               style={[
@@ -149,19 +161,29 @@ export function CategoryForm({
             </Text>
 
             <TextInput
+              ref={nameRef}
               accessibilityLabel={translations.categoryName}
               value={name}
-              onChangeText={setName}
+              onChangeText={(text) => {
+                setName(text);
+                clearError('name');
+              }}
               editable={!saving}
+              returnKeyType="done"
+              submitBehavior="blurAndSubmit"
               style={[
                 styles.input,
                 {
                   color: palette.text,
                   backgroundColor: palette.card,
-                  borderColor: palette.border,
+                  borderColor: errors.name
+                    ? palette.error
+                    : palette.border,
                 },
               ]}
             />
+
+            <FieldError message={errors.name} />
 
             <Text
               style={[
@@ -246,21 +268,5 @@ const styles = StyleSheet.create({
   actions: {
     gap: 12,
     marginTop: 16,
-  },
-  iconGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -4,
-  },
-  iconCell: {
-    width: '25%',
-    padding: 4,
-  },
-  iconOption: {
-    minHeight: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
   },
 });

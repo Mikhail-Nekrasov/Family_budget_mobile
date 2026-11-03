@@ -1,8 +1,7 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useRef, useState } from 'react';
+import { type ComponentRef, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -10,7 +9,7 @@ import {
   Text,
   TextInput,
   View,
-  useColorScheme,
+  useColorScheme
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,7 +19,9 @@ import { CategoryForm } from '@/components/categories/category-form';
 import { CategoryIcon } from '@/components/categories/category-icon';
 import { CompactIconSelect } from '@/components/compact-icon-select';
 import { EntryDateTime } from '@/components/entries/entry-date-time';
+import { FieldError } from '@/components/field-error';
 import { ScreenBackground } from '@/components/screen-background';
+import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
 import type { Category } from '@/models/category';
@@ -54,6 +55,16 @@ export function EntryForm({
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
+  const titleRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const amountRef = useRef<ComponentRef<typeof TextInput>>(null);
+
+  const {
+    errors,
+    clearError,
+    showFieldError,
+    showFormError,
+  } = useFormErrors<'title' | 'amount' | 'category'>();
+
   const [description, setDescription] = useState('');
   const [dateTime, setDateTime] = useState(() => {
     const now = new Date();
@@ -81,12 +92,14 @@ export function EntryForm({
         text: '#F0F3FA',
         muted: '#A8B3C5',
         border: '#333F52',
+        error: '#FF8A80',
       }
     : {
         card: '#FFFFFF',
         text: '#192238',
         muted: '#6C7890',
         border: '#E0E5EE',
+        error: '#C62828',
       };
 
   useEffect(() => {
@@ -120,23 +133,12 @@ export function EntryForm({
           (category) => category.syncId,
         );
 
-        const usedCategoryIds = new Set(
-          recentUsage.map((entry) => entry.categorySyncId),
-        );
-
-        const recommendedCategoryIds = rankedCategories
-          .filter((category) => usedCategoryIds.has(category.syncId))
-          .slice(0, 3)
-          .map((category) => category.syncId);
-
         setAccounts(rankedAccounts);
         setCategories(rankedCategories);
 
         setAccountSyncId(rankedAccounts[0]?.syncId ?? null);
 
-        setCategorySyncId(
-          recommendedCategoryIds[0] ?? null,
-        );
+        setCategorySyncId(rankedCategories[0]?.syncId ?? null);
 
         setStatus('ready');
       } catch (error) {
@@ -183,6 +185,7 @@ export function EntryForm({
     });
 
     setCategorySyncId(category.syncId);
+    clearError('category');
   }
 
   async function saveEntry() {
@@ -190,28 +193,23 @@ export function EntryForm({
       return;
     }
 
-    if (
-      title.trim().length === 0 ||
-      title.trim().length > 255
-    ) {
-      Alert.alert(
-        translations.error,
+    if (title.trim().length === 0) {
+      showFieldError(
+        'title',
         translations.entryTitleRequired,
+        titleRef,
       );
       return;
     }
 
     if (!selectedAccount) {
-      Alert.alert(
-        translations.error,
-        translations.entryOptionsRequired,
-      );
+      showFormError(translations.entryOptionsRequired);
       return;
     }
 
     if (!categorySyncId) {
-      Alert.alert(
-        translations.error,
+      showFieldError(
+        'category',
         translations.entryCategoryRequired,
       );
       return;
@@ -228,9 +226,10 @@ export function EntryForm({
     );
 
     if (amountMinor === null || amountMinor <= 0) {
-      Alert.alert(
-        translations.error,
+      showFieldError(
+        'amount',
         translations.entryAmountInvalid,
+        amountRef,
       );
       return;
     }
@@ -251,10 +250,7 @@ export function EntryForm({
     } catch (error) {
       console.warn('Failed to save entry', error);
 
-      Alert.alert(
-        translations.error,
-        translations.saveEntryError,
-      );
+      showFormError(translations.saveEntryError);
       return;
     } finally {
       savingRef.current = false;
@@ -304,13 +300,24 @@ export function EntryForm({
                 <TextInput
                   accessibilityLabel={translations.entryTitle}
                   value={title}
-                  onChangeText={setTitle}
                   maxLength={255}
                   editable={!saving}
-                  style={inputStyle}
+                  ref={titleRef}
+                  onChangeText={(text) => {
+                    setTitle(text);
+                    clearError('title');
+                  }}
+                  style={[
+                    inputStyle,
+                    errors.title && {
+                      borderColor: palette.error,
+                    },
+                  ]}
                   returnKeyType="done"
                   submitBehavior="blurAndSubmit"
                 />
+
+                <FieldError message={errors.title} />
 
                 <Text style={[styles.label, { color: palette.text }]}>
                   {translations.entryAccount}
@@ -332,11 +339,22 @@ export function EntryForm({
                 <TextInput
                   accessibilityLabel={translations.entryAmount}
                   value={amount}
-                  onChangeText={setAmount}
                   keyboardType="decimal-pad"
                   editable={!saving}
-                  style={inputStyle}
+                  ref={amountRef}
+                  onChangeText={(text) => {
+                    setAmount(text);
+                    clearError('amount');
+                  }}
+                  style={[
+                    inputStyle,
+                    errors.amount && {
+                      borderColor: palette.error,
+                    },
+                  ]}
                 />
+
+                <FieldError message={errors.amount} />
 
                 <Text style={[styles.label, { color: palette.text }]}>
                   {translations.entryCategory}
@@ -349,7 +367,10 @@ export function EntryForm({
                     label: category.name,
                   }))}
                   value={categorySyncId}
-                  onChange={setCategorySyncId}
+                  onChange={(syncId) => {
+                    setCategorySyncId(syncId);
+                    clearError('category');
+                  }}
                   disabled={saving}
                   showLabels
                   renderCreateForm={(onCreated, onCancel) => (
@@ -376,6 +397,8 @@ export function EntryForm({
                     );
                   }}
                 />
+
+                <FieldError message={errors.category} />
 
                 <EntryDateTime
                   value={dateTime}
