@@ -5,16 +5,27 @@ import { HomeFilters } from '@/components/home-filters';
 import { MenuButton } from '@/components/menu-button';
 import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
-import {
-  accounts,
-  categories,
-  demoEntries,
-  formatAmount,
-} from '@/data/home-demo';
 import { useLanguage } from '@/hooks/use-language';
+import type { Account } from '@/models/account';
+import type { Category } from '@/models/category';
+import type { Entry } from '@/models/entry';
 import type { EntryType } from '@/models/entry-type';
-import { useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import type { ExchangeRateSnapshot } from '@/models/exchange-rate-snapshot';
+import {
+  getAccounts,
+  getArchivedAccounts,
+} from '@/repositories/account-repository';
+import { getCategories } from '@/repositories/category-repository';
+import { getEntries } from '@/repositories/entry-repository';
+import { getExchangeRateSnapshot } from '@/repositories/exchange-rate-repository';
+import { getPrimaryCurrency } from '@/repositories/preferences-repository';
+import { convertAmountMinor } from '@/services/currency-conversion-service';
+import { refreshExchangeRates } from '@/services/exchange-rate-service';
+
+import { useFocusEffect } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
@@ -24,24 +35,247 @@ export default function HomeScreen() {
   const [accountIds, setAccountIds] = useState<string[]>([]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [createVisible, setCreateVisible] = useState(false);
+
+  const database = useSQLiteContext();
+
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [primaryCurrency, setPrimaryCurrency] = useState('EUR');
+
+  const [exchangeRates, setExchangeRates] =
+    useState<ExchangeRateSnapshot | null>(null);
+
+  const [status, setStatus] = useState<
+    'loading' | 'ready' | 'error'
+  >('loading');
+
   const dark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const palette = dark
     ? { background: '#111722', card: '#1C2432', text: '#F0F3FA', muted: '#A8B3C5', line: '#333F52', accent: '#A0B8FF', icon: '#29354B' }
     : { background: '#F5F6F9', card: '#FFFFFF', text: '#192238', muted: '#6C7890', line: '#E0E5EE', accent: '#365BBC', icon: '#EAF0FC' };
 
-  const monthKey = `${period.getFullYear()}-${String(period.getMonth() + 1).padStart(2, '0')}`;
+
   const monthLabel = new Intl.DateTimeFormat(locale, {
     month: 'long',
     year: 'numeric',
   }).format(period);
-  const entries = demoEntries.filter((entry) => entry.type === type && entry.month === monthKey
-    && (accountIds.length === 0 || accountIds.includes(entry.accountId))
-    && (categoryIds.length === 0 || categoryIds.includes(entry.categoryId)));
-  const segments: ChartSegment[] = Object.entries(categories).map(([id, category]) => ({
-    id, name: category.name, color: category.color,
-    amountCents: entries.filter((entry) => entry.categoryId === id).reduce((sum, entry) => sum + entry.amountCents, 0),
-  })).filter((segment) => segment.amountCents > 0);
+
+  useEffect(() => {
+    let active = true;
+
+    async function refreshRates() {
+      try {
+        const snapshot = await refreshExchangeRates(database);
+
+        if (active && snapshot) {
+          setExchangeRates((current) => {
+            if (
+              current &&
+              Date.parse(current.fetchedAt) >
+                Date.parse(snapshot.fetchedAt)
+            ) {
+              return current;
+            }
+
+            return snapshot;
+          });
+        }
+      } catch (error) {
+        console.warn('Failed to read exchange rate cache', error);
+      }
+    }
+
+    void refreshRates();
+
+    return () => {
+      active = false;
+    };
+  }, [database]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (createVisible) {
+        return;
+      }
+
+      let active = true;
+
+      async function loadHome() {
+        setStatus('loading');
+
+        const from = new Date(
+          period.getFullYear(),
+          period.getMonth(),
+          1,
+        );
+
+        const to = new Date(
+          period.getFullYear(),
+          period.getMonth() + 1,
+          1,
+        );
+
+        try {
+          const [
+            activeAccounts,
+            archivedAccounts,
+            loadedCategories,
+            loadedEntries,
+            loadedCurrency,
+            cachedRates,
+          ] = await Promise.all([
+            getAccounts(database),
+            getArchivedAccounts(database),
+            getCategories(database, type),
+            getEntries(database, {
+              type,
+              from,
+              to,
+              accountSyncIds: accountIds,
+              categorySyncIds: categoryIds,
+            }),
+            getPrimaryCurrency(database),
+            getExchangeRateSnapshot(database),
+          ]);
+
+          if (!active) {
+            return;
+          }
+
+          setPrimaryCurrency(loadedCurrency);
+
+          if (cachedRates) {
+            setExchangeRates((current) => {
+              if (
+                current &&
+                Date.parse(current.fetchedAt) >
+                  Date.parse(cachedRates.fetchedAt)
+              ) {
+                return current;
+              }
+
+              return cachedRates;
+            });
+          }
+
+          setAccounts([
+            ...activeAccounts,
+            ...archivedAccounts,
+          ]);
+          setCategories(loadedCategories);
+          setEntries(loadedEntries);
+          setStatus('ready');
+        } catch (error) {
+          console.warn('Failed to load home data', error);
+
+          if (active) {
+            setEntries([]);
+            setStatus('error');
+          }
+        }
+      }
+
+      void loadHome();
+
+      return () => {
+        active = false;
+      };
+    }, [
+      database,
+      type,
+      period,
+      accountIds,
+      categoryIds,
+      createVisible,
+    ]),
+  );
+
+  const accountsById = new Map(
+    accounts.map((account) => [account.syncId, account]),
+  );
+
+  const chartCurrencyCode = primaryCurrency;
+
+  const categoryTotals = new Map<string, number>();
+
+  let conversionIncomplete = false;
+
+  for (const entry of entries) {
+    const account = accountsById.get(entry.accountSyncId);
+
+    if (!account) {
+      conversionIncomplete = true;
+      continue;
+    }
+
+    const convertedAmount = convertAmountMinor(
+      entry.amountMinor,
+      account.currencyCode,
+      primaryCurrency,
+      exchangeRates,
+    );
+
+    if (convertedAmount === null) {
+      conversionIncomplete = true;
+      continue;
+    }
+
+    const total =
+      (categoryTotals.get(entry.categorySyncId) ?? 0) +
+      convertedAmount;
+
+    if (!Number.isSafeInteger(total)) {
+      conversionIncomplete = true;
+      continue;
+    }
+
+    categoryTotals.set(entry.categorySyncId, total);
+  }
+
+  const chartColors = [
+    '#6488E8',
+    '#E7A45B',
+    '#65B79A',
+    '#B58AD9',
+    '#DE7D94',
+    '#65B7CE',
+    '#A6B85D',
+    '#BD9275',
+  ];
+
+  const segments: ChartSegment[] = categories
+    .map((category) => {
+      let hash = 0;
+
+      for (const character of category.syncId) {
+        hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+      }
+
+      return {
+        id: category.syncId,
+        name: category.name,
+        color: chartColors[hash % chartColors.length],
+        amountMinor: categoryTotals.get(category.syncId) ?? 0,
+      };
+    })
+    .filter((segment) => segment.amountMinor > 0);
+
+  function formatEntryAmount(
+    amountMinor: number,
+    currencyCode: string,
+  ): string {
+    const fractionDigits = new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: currencyCode,
+    }).resolvedOptions().maximumFractionDigits ?? 2;
+
+    return new Intl.NumberFormat(locale, {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    }).format(amountMinor / 10 ** fractionDigits);
+  }
 
   function changeMonth(direction: number) {
     setPeriod((current) => new Date(current.getFullYear(), current.getMonth() + direction, 1));
@@ -75,7 +309,15 @@ export default function HomeScreen() {
           />
         </View>
 
-        <FlatList data={entries} keyExtractor={(entry) => entry.id}
+        <FlatList
+          data={
+            status === 'ready'
+              ? entries.filter((entry) =>
+                  accountsById.has(entry.accountSyncId),
+                )
+              : []
+          }
+          keyExtractor={(entry) => entry.syncId}
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
           ListHeaderComponent={<View style={styles.header}>
             <View style={styles.period}>
@@ -88,55 +330,117 @@ export default function HomeScreen() {
               </Pressable>
             </View>
             <View style={styles.chartPanel}>
-            <CategoryChart segments={segments} 
-              label={
-                type === 'EXPENSE'
-                  ? translations.totalExpenses
-                  : translations.totalIncome
-              }
-              currencySymbol="€" textColor={palette.text} mutedColor={palette.muted} trackColor={palette.line} />
-            <Pressable accessibilityRole="button" 
-              accessibilityLabel={
-                type === 'EXPENSE'
-                  ? translations.addExpense
-                  : translations.addIncome
-              }
-              onPress={() => setCreateVisible(true)}
-              style={[styles.addButton, { backgroundColor: palette.accent }]}>
-              <Text style={[styles.addText, { color: palette.background }]}>＋</Text>
-            </Pressable>
+              {status === 'ready' && conversionIncomplete ? (
+                <Text
+                  style={[
+                    styles.empty,
+                    { color: palette.muted },
+                  ]}
+                >
+                  {translations.conversionUnavailable}
+                </Text>
+              ) : (
+                <>
+                  <CategoryChart
+                    segments={status === 'ready' ? segments : []}
+                    label={
+                      type === 'EXPENSE'
+                        ? translations.totalExpenses
+                        : translations.totalIncome
+                    }
+                    currencyCode={chartCurrencyCode}
+                    textColor={palette.text}
+                    mutedColor={palette.muted}
+                    trackColor={palette.line}
+                  />
+                </>
+              )}
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  type === 'EXPENSE'
+                    ? translations.addExpense
+                    : translations.addIncome
+                }
+                onPress={() => setCreateVisible(true)}
+                style={[
+                  styles.addButton,
+                  { backgroundColor: palette.accent },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.addText,
+                    { color: palette.background },
+                  ]}
+                >
+                  ＋
+                </Text>
+              </Pressable>
             </View>
             <HomeFilters accountIds={accountIds} categoryIds={categoryIds}
               onAccountsChange={setAccountIds} onCategoriesChange={setCategoryIds}
-              categoryOptions={Object.entries(categories)
-                .filter(([id]) => type === 'EXPENSE'
-                  ? ['groceries', 'housing', 'transport'].includes(id)
-                  : ['salary', 'otherIncome'].includes(id))
-                .map(([id, category]) => ({ id, name: category.name }))}
+              accountOptions={accounts.map((account) => ({
+                id: account.syncId,
+                name: `${account.name} · ${account.currencyCode}`,
+              }))}
+              categoryOptions={categories.map((category) => ({
+                id: category.syncId,
+                name: category.name,
+              }))}
               palette={palette} />
           </View>}
           ListEmptyComponent={
-            <Text style={[styles.empty, { color: palette.muted }]}>
-              {translations.noEntries}
-            </Text>
+            status === 'loading' ? (
+              <ActivityIndicator
+                color={palette.text}
+                accessibilityLabel={translations.loading}
+                style={{ paddingVertical: 28 }}
+              />
+            ) : (
+              <Text
+                style={[
+                  styles.empty,
+                  { color: palette.muted },
+                ]}
+              >
+                {status === 'error'
+                  ? translations.loadEntriesError
+                  : translations.noEntries}
+              </Text>
+            )
           }
           renderItem={({ item }) => {
-            const account = accounts[item.accountId];
+            const account = accountsById.get(
+              item.accountSyncId,
+            );
+
+            if (!account) {
+              return null;
+            }
 
             return (
               <EntryCard
                 title={item.title}
                 accountName={account.name}
                 iconKey={account.iconKey}
-                amount={formatAmount(item.amountCents, locale)}
+                amount={formatEntryAmount(
+                  item.amountMinor,
+                  account.currencyCode,
+                )}
                 currencyCode={account.currencyCode}
-                currencySymbol={account.currencySymbol}
+                currencySymbol={account.currencyCode}
                 income={item.type === 'INCOME'}
-                accessibilityLabel={translations.openEntry(item.title)}
+                accessibilityLabel={
+                  translations.openEntry(item.title)
+                }
                 onPress={() =>
                   Alert.alert(
                     item.title,
-                    translations.editEntryPlaceholder(item.id),
+                    translations.editEntryPlaceholder(
+                      item.syncId,
+                    ),
                   )
                 }
               />
@@ -195,10 +499,6 @@ const styles = StyleSheet.create({
   periodText: { fontSize: 16, fontWeight: '600', textTransform: 'capitalize' },
   arrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   arrowText: { fontSize: 32 },
-  
-  
-  
-  
   
   currency: { fontSize: 16 },
   empty: { textAlign: 'center', paddingVertical: 28, fontSize: 15 },

@@ -1,4 +1,3 @@
-import { accounts } from '@/data/home-demo';
 import { useLanguage } from '@/hooks/use-language';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -10,17 +9,26 @@ type Props = {
   categoryIds: string[];
   onAccountsChange: (ids: string[]) => void;
   onCategoriesChange: (ids: string[]) => void;
+  accountOptions: Option[];
   categoryOptions: Option[];
   palette: { card: string; text: string; muted: string; accent: string; line: string };
 };
 
-export function HomeFilters({ accountIds, categoryIds, onAccountsChange, onCategoriesChange, categoryOptions, palette }: Props) {
+export function HomeFilters({
+  accountIds,
+  categoryIds,
+  onAccountsChange,
+  onCategoriesChange,
+  accountOptions,
+  categoryOptions,
+  palette,
+}: Props) {
   const { translations } = useLanguage();
   const [active, setActive] = useState<'accounts' | 'categories' | null>(null);
   const [draft, setDraft] = useState<string[]>([]);
   const insets = useSafeAreaInsets();
   const options = active === 'accounts'
-    ? Object.entries(accounts).map(([id, account]) => ({ id, name: account.name }))
+    ? accountOptions
     : categoryOptions;
 
   function openFilter(kind: 'accounts' | 'categories') {

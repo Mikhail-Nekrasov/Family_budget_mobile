@@ -64,7 +64,7 @@ export const en = {
   saving: 'Saving',
   error: 'Error',
   accountNameRequired: 'Enter an account name',
-  invalidAmount: 'Enter a valid amount with up to two decimal places',
+  invalidAmount: 'Enter a valid amount in the selected currency',
   saveAccountError: 'Could not save the account',
 
   editAccount: 'Edit account',
@@ -126,6 +126,15 @@ export const en = {
   now: 'Now',
 
   ok: 'OK',
+
+  loadEntriesError: 'Could not load entries',
+  chartMixedCurrencies: 'Select accounts with the same currency to view the chart',
+
+  primaryCurrency: 'Primary currency',
+  loadPreferencesError: 'Could not load settings',
+  savePreferencesError: 'Could not save settings',
+
+  conversionUnavailable: 'Exchange rates are required to calculate the total',
 };
 
 export type Messages = typeof en;

@@ -42,6 +42,13 @@ export default function SettingsLayout() {
           title: translations.language,
         }}
       />
+
+      <Stack.Screen
+        name="primary-currency"
+        options={{
+          title: translations.primaryCurrency,
+        }}
+      />
     </Stack>
   );
 }

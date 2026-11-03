@@ -1,4 +1,3 @@
-import { formatAmount } from '@/data/home-demo';
 import { useLanguage } from '@/hooks/use-language';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -7,32 +6,42 @@ export type ChartSegment = {
   id: string;
   name: string;
   color: string;
-  amountCents: number;
+  amountMinor: number;
 };
 
 type Props = {
   segments: ChartSegment[];
   label: string;
-  currencySymbol: string;
+  currencyCode: string;
   textColor: string;
   mutedColor: string;
   trackColor: string;
 };
 
-export function CategoryChart({ segments, label, currencySymbol, textColor, mutedColor, trackColor }: Props) {
+export function CategoryChart({ segments, label, currencyCode, textColor, mutedColor, trackColor }: Props) {
   const { locale } = useLanguage();
-  const total = segments.reduce((sum, segment) => sum + segment.amountCents, 0);
+  const formatter = new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: currencyCode,
+  });
+
+  const fractionDigits =
+    formatter.resolvedOptions().maximumFractionDigits ?? 2;
+  const total = segments.reduce((sum, segment) => sum + segment.amountMinor, 0);
+  const formattedTotal = formatter.format(
+    total / 10 ** fractionDigits,
+  );
   const radius = 82;
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
 
   return (
     <View style={styles.container}>
-      <View style={styles.chart} accessible accessibilityLabel={`${label}: ${formatAmount(total, locale)} ${currencySymbol}`}>
+      <View style={styles.chart} accessible accessibilityLabel={`${label}: ${formattedTotal}`}>
         <Svg width="100%" height="100%" viewBox="0 0 200 200">
           <Circle cx={100} cy={100} r={radius} fill="none" stroke={trackColor} strokeWidth={19} />
           {total > 0 && segments.map((segment) => {
-            const length = segment.amountCents / total * circumference;
+            const length = segment.amountMinor / total * circumference;
             const start = offset;
             offset += length;
             return <Circle key={segment.id} cx={100} cy={100} r={radius} fill="none"
@@ -44,7 +53,7 @@ export function CategoryChart({ segments, label, currencySymbol, textColor, mute
         <View style={styles.center} pointerEvents="none">
           <Text style={[styles.label, { color: mutedColor }]}>{label}</Text>
           <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55}
-            style={[styles.total, { color: textColor }]}>{formatAmount(total, locale)} {currencySymbol}</Text>
+            style={[styles.total, { color: textColor }]}>{formattedTotal}</Text>
         </View>
       </View>
 

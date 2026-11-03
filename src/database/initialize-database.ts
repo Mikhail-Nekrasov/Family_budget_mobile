@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 9;
+const DATABASE_VERSION = 12;
 
 export async function initializeDatabase(
   database: SQLiteDatabase,
@@ -209,6 +209,52 @@ export async function initializeDatabase(
       await database.execAsync(`
         ALTER TABLE categories
         ADD COLUMN icon_key TEXT NOT NULL DEFAULT 'category';
+      `);
+    }
+
+    if (currentVersion < 10) {
+      await database.execAsync(`
+        CREATE TRIGGER prevent_account_delete_with_entries
+        BEFORE DELETE ON accounts
+        WHEN EXISTS (
+          SELECT 1
+          FROM entries
+          WHERE account_sync_id = OLD.sync_id
+        )
+        BEGIN
+          SELECT RAISE(
+            ABORT,
+            'Cannot delete an account with entries'
+          );
+        END;
+      `);
+    }
+
+    if (currentVersion < 11) {
+      await database.execAsync(`
+        CREATE TABLE app_preferences (
+          id INTEGER PRIMARY KEY NOT NULL
+            CHECK (id = 1),
+
+          primary_currency_code TEXT NOT NULL
+        );
+
+        INSERT INTO app_preferences (
+          id,
+          primary_currency_code
+        )
+        VALUES (1, 'EUR');
+      `);
+    }
+
+    if (currentVersion < 12) {
+      await database.execAsync(`
+        CREATE TABLE exchange_rate_snapshot (
+          id INTEGER PRIMARY KEY NOT NULL
+            CHECK (id = 1),
+
+          payload TEXT NOT NULL
+        );
       `);
     }
 

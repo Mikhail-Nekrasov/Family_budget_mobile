@@ -1,7 +1,8 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { useRef, useState, type ComponentRef } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,17 +19,20 @@ import { AccountIcon } from '@/components/accounts/account-icon';
 import { AppButton } from '@/components/app-button';
 import { FieldError } from '@/components/field-error';
 import { ScreenBackground } from '@/components/screen-background';
+import { CURRENCY_CODES } from '@/constants/currencies';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
 import {
   archiveAccount,
+  canDeleteLocalAccount,
   createAccount,
   deleteLocalAccount,
   restoreAccount,
   updateAccount
 } from '@/repositories/account-repository';
 import { parseAmountToMinor } from '@/utils/money';
+
 
 type Props = {
   account?: Account;
@@ -41,6 +45,12 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
   const { translations } = useLanguage();
 
   const [name, setName] = useState(account?.name ?? '');
+
+  const [currencyCode, setCurrencyCode] = useState(
+    account?.currencyCode ?? 'EUR',
+  );
+
+  const [currencyExpanded, setCurrencyExpanded] = useState(false);
 
   const nameRef = useRef<ComponentRef<typeof TextInput>>(null);
 
@@ -98,6 +108,42 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
     { key: 'card', label: translations.cardIcon },
   ] as const;
 
+  const [canDelete, setCanDelete] = useState(false);
+  const accountSyncId = account?.syncId;
+
+  useEffect(() => {
+    let active = true;
+
+    async function checkDeletion() {
+      if (!accountSyncId) {
+        return;
+      }
+
+      try {
+        const allowed = await canDeleteLocalAccount(
+          database,
+          accountSyncId,
+        );
+
+        if (active) {
+          setCanDelete(allowed);
+        }
+      } catch (error) {
+        console.warn('Failed to check account deletion', error);
+
+        if (active) {
+          setCanDelete(false);
+        }
+      }
+    }
+
+    void checkDeletion();
+
+    return () => {
+      active = false;
+    };
+  }, [database, accountSyncId]);
+
   async function saveAccount() {
     if (savingRef.current) {
       return;
@@ -112,9 +158,14 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
       return;
     }
 
+    const fractionDigits = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: currencyCode,
+    }).resolvedOptions().maximumFractionDigits ?? 2;
+
     const openingBalanceMinor = account
       ? account.openingBalanceMinor
-      : parseAmountToMinor(openingBalance, 2);
+      : parseAmountToMinor(openingBalance, fractionDigits);
 
     if (openingBalanceMinor === null) {
       showFieldError(
@@ -139,7 +190,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
         await createAccount(database, {
           name,
           description,
-          currencyCode: 'EUR',
+          currencyCode,
           iconKey,
           openingBalanceMinor,
         });
@@ -192,7 +243,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
   }
 
   function confirmDeleteAccount() {
-    if (!account || savingRef.current) {
+    if (!account || !canDelete || savingRef.current) {
       return;
     }
 
@@ -303,9 +354,107 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
               {translations.currency}
             </Text>
 
-            <Text style={[styles.currency, { color: palette.text }]}>
-              {account?.currencyCode ?? 'EUR'}
-            </Text>
+            {account ? (
+              <Text
+                style={[
+                  styles.currency,
+                  { color: palette.text },
+                ]}
+              >
+                {currencyCode}
+              </Text>
+            ) : (
+              <View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    `${translations.currency}: ${currencyCode}`
+                  }
+                  accessibilityState={{
+                    expanded: currencyExpanded,
+                    disabled: saving,
+                  }}
+                  disabled={saving}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setCurrencyExpanded((current) => !current);
+                  }}
+                  style={[
+                    styles.currencyField,
+                    {
+                      backgroundColor: palette.card,
+                      borderColor: palette.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.currencyCode,
+                      { color: palette.text },
+                    ]}
+                  >
+                    {currencyCode}
+                  </Text>
+
+                  <Text
+                    accessible={false}
+                    style={{ color: palette.accent }}
+                  >
+                    {currencyExpanded ? '▴' : '▾'}
+                  </Text>
+                </Pressable>
+
+                {currencyExpanded && (
+                  <ScrollView
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
+                    style={[
+                      styles.currencyList,
+                      {
+                        backgroundColor: palette.card,
+                        borderColor: palette.border,
+                      },
+                    ]}
+                  >
+                    {CURRENCY_CODES.map((code) => (
+                      <Pressable
+                        key={code}
+                        accessibilityRole="radio"
+                        accessibilityLabel={code}
+                        accessibilityState={{
+                          checked: currencyCode === code,
+                          disabled: saving,
+                        }}
+                        disabled={saving}
+                        onPress={() => {
+                          setCurrencyCode(code);
+                          setCurrencyExpanded(false);
+                          clearError('openingBalance');
+                        }}
+                        style={styles.currencyOption}
+                      >
+                        <Text
+                          style={[
+                            styles.currencyCode,
+                            {
+                              color: currencyCode === code
+                                ? palette.accent
+                                : palette.text,
+                            },
+                          ]}
+                        >
+                          {code}
+                        </Text>
+
+                        <Text style={{ color: palette.accent }}>
+                          {currencyCode === code ? '✓' : ''}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            )}
 
             <Text style={[styles.label, { color: palette.text }]}>
               {translations.accountIcon}
@@ -371,7 +520,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
                     }
                   />
 
-                  {account.serverId === null && (
+                  {canDelete && (
                     <AppButton
                       title={translations.deleteAccount}
                       variant="danger"
@@ -444,5 +593,31 @@ const styles = StyleSheet.create({
   actions: {
     gap: 12,
     marginTop: 16,
+  },
+  currencyField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 48,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  currencyCode: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  currencyList: {
+    maxHeight: 220,
+    marginTop: 6,
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  currencyOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 48,
+    paddingHorizontal: 14,
   },
 });

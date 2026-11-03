@@ -66,7 +66,7 @@ export const fi: Messages = {
   saving: 'Tallennetaan',
   error: 'Virhe',
   accountNameRequired: 'Anna tilin nimi',
-  invalidAmount: 'Anna kelvollinen summa, jossa on enintään kaksi desimaalia',
+  invalidAmount: 'Anna kelvollinen summa valitussa valuutassa',
   saveAccountError: 'Tilin tallentaminen epäonnistui',
 
   editAccount: 'Muokkaa tiliä',
@@ -128,4 +128,13 @@ export const fi: Messages = {
   now: 'Nyt',
 
   ok: 'OK',
+
+  loadEntriesError: 'Tapahtumia ei voitu ladata',
+  chartMixedCurrencies: 'Valitse kaaviota varten tilit, joilla on sama valuutta',
+
+  primaryCurrency: 'Päävaluutta',
+  loadPreferencesError: 'Asetuksia ei voitu ladata',
+  savePreferencesError: 'Asetuksia ei voitu tallentaa',
+
+  conversionUnavailable: 'Yhteissumman laskemiseen tarvitaan valuuttakurssit',
 };

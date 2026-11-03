@@ -1,4 +1,6 @@
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useCallback, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -9,8 +11,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenBackground } from '@/components/screen-background';
+import {
+  CURRENCY_SYMBOLS,
+  type CurrencyCode
+} from '@/constants/currencies';
 import { useLanguage } from '@/hooks/use-language';
 import type { Language } from '@/i18n/languages';
+import {
+  getPrimaryCurrency
+} from '@/repositories/preferences-repository';
 
 const languageNames: Record<Language, string> = {
   en: 'English',
@@ -21,7 +30,43 @@ const languageNames: Record<Language, string> = {
 export default function SettingsScreen() {
   const router = useRouter();
   const { language, translations } = useLanguage();
+
   const dark = useColorScheme() === 'dark';
+  const database = useSQLiteContext();
+
+  const [primaryCurrency, setCurrency] =
+    useState<CurrencyCode | null>(null);
+
+  const [preferencesError, setPreferencesError] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      async function loadPreferences() {
+        try {
+          const currency = await getPrimaryCurrency(database);
+
+          if (active) {
+            setCurrency(currency);
+            setPreferencesError(false);
+          }
+        } catch (error) {
+          console.warn('Failed to load preferences', error);
+
+          if (active) {
+            setPreferencesError(true);
+          }
+        }
+      }
+
+      void loadPreferences();
+
+      return () => {
+        active = false;
+      };
+    }, [database]),
+  );
 
   const palette = dark
     ? {
@@ -84,6 +129,59 @@ export default function SettingsScreen() {
               ›
             </Text>
           </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              router.push('/settings/primary-currency')
+            }
+            style={({ pressed }) => [
+              styles.setting,
+              {
+                backgroundColor: palette.card,
+                borderColor: palette.border,
+                opacity: pressed ? 0.75 : 1,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.label,
+                { color: palette.text },
+              ]}
+            >
+              {translations.primaryCurrency}
+            </Text>
+
+            <Text
+              style={[
+                styles.value,
+                { color: palette.muted },
+              ]}
+            >
+              {primaryCurrency
+                ? `${primaryCurrency} · ${CURRENCY_SYMBOLS[primaryCurrency]}`
+                : preferencesError
+                  ? '—'
+                  : translations.loading}
+            </Text>
+
+            <Text
+              accessible={false}
+              style={[
+                styles.arrow,
+                { color: palette.muted },
+              ]}
+            >
+              ›
+            </Text>
+          </Pressable>
+
+          {preferencesError && (
+            <Text style={{ color: palette.text }}>
+              {translations.loadPreferencesError}
+            </Text>
+          )}
         </ScrollView>
       </SafeAreaView>
     </ScreenBackground>

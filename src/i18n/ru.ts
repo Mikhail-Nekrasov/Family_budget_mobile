@@ -66,7 +66,7 @@ export const ru: Messages = {
   saving: 'Сохранение',
   error: 'Ошибка',
   accountNameRequired: 'Введите название счёта',
-  invalidAmount: 'Введите корректную сумму, не более двух знаков после запятой',
+  invalidAmount: 'Введите корректную сумму в выбранной валюте',
   saveAccountError: 'Не удалось сохранить счёт',
 
   editAccount: 'Редактирование счёта',
@@ -128,4 +128,13 @@ export const ru: Messages = {
   now: 'Сейчас',
 
   ok: 'ОК',
+
+  loadEntriesError: 'Не удалось загрузить операции',
+  chartMixedCurrencies: 'Для диаграммы выберите счета в одной валюте',
+
+  primaryCurrency: 'Основная валюта',
+  loadPreferencesError: 'Не удалось загрузить настройки',
+  savePreferencesError: 'Не удалось сохранить настройки',
+
+  conversionUnavailable: 'Для расчёта итога нужны курсы валют',
 };

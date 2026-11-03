@@ -220,6 +220,32 @@ export async function restoreAccount(
   }
 }
 
+export async function canDeleteLocalAccount(
+  database: SQLiteDatabase,
+  syncId: string,
+): Promise<boolean> {
+  const result = await database.getFirstAsync<{
+    deletable: number;
+  }>(
+    `
+      SELECT EXISTS (
+        SELECT 1
+        FROM accounts
+        WHERE sync_id = ?
+          AND server_id IS NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM entries
+            WHERE account_sync_id = accounts.sync_id
+          )
+      ) AS deletable
+    `,
+    syncId,
+  );
+
+  return result?.deletable === 1;
+}
+
 export async function deleteLocalAccount(
   database: SQLiteDatabase,
   syncId: string,
@@ -231,15 +257,28 @@ export async function deleteLocalAccount(
           DELETE FROM accounts
           WHERE sync_id = ?
             AND server_id IS NULL
+            AND NOT EXISTS (
+              SELECT 1
+              FROM entries
+              WHERE account_sync_id = accounts.sync_id
+            )
         `,
         syncId,
       );
 
       if (result.changes !== 1) {
         throw new Error(
-          'Local account not found or already synchronized',
+          'Account cannot be deleted: it has entries, is synchronized or does not exist',
         );
       }
+
+      await transaction.runAsync(
+        `
+          DELETE FROM account_order
+          WHERE account_sync_id = ?
+        `,
+        syncId,
+      );
 
       await markAccountOrderChanged(transaction);
     },
