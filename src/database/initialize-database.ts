@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 12;
+const DATABASE_VERSION = 13;
 
 export async function initializeDatabase(
   database: SQLiteDatabase,
@@ -254,6 +254,20 @@ export async function initializeDatabase(
             CHECK (id = 1),
 
           payload TEXT NOT NULL
+        );
+      `);
+    }
+
+    if (currentVersion < 13) {
+      await database.execAsync(`
+        CREATE TABLE historical_exchange_rate (
+          requested_date TEXT NOT NULL,
+          currency_code TEXT NOT NULL,
+          rate REAL NOT NULL CHECK (rate > 0),
+          rate_date TEXT NOT NULL,
+          fetched_at TEXT NOT NULL,
+          checked_at TEXT NOT NULL,
+          PRIMARY KEY (requested_date, currency_code)
         );
       `);
     }

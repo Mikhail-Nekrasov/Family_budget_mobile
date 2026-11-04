@@ -5,26 +5,24 @@ import { HomeFilters } from '@/components/home-filters';
 import { MenuButton } from '@/components/menu-button';
 import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
+import { useEntryConversion } from '@/hooks/use-entry-conversion';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
 import type { Category } from '@/models/category';
 import type { Entry } from '@/models/entry';
 import type { EntryType } from '@/models/entry-type';
-import type { ExchangeRateSnapshot } from '@/models/exchange-rate-snapshot';
 import {
   getAccounts,
   getArchivedAccounts,
 } from '@/repositories/account-repository';
 import { getCategories } from '@/repositories/category-repository';
 import { getEntries } from '@/repositories/entry-repository';
-import { getExchangeRateSnapshot } from '@/repositories/exchange-rate-repository';
 import { getPrimaryCurrency } from '@/repositories/preferences-repository';
-import { convertAmountMinor } from '@/services/currency-conversion-service';
-import { refreshExchangeRates } from '@/services/exchange-rate-service';
+import { getCurrencySymbol } from '@/utils/format-money';
 
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -44,8 +42,6 @@ export default function HomeScreen() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [primaryCurrency, setPrimaryCurrency] = useState('EUR');
 
-  const [exchangeRates, setExchangeRates] =
-    useState<ExchangeRateSnapshot | null>(null);
 
   const [status, setStatus] = useState<
     'loading' | 'ready' | 'error'
@@ -62,38 +58,6 @@ export default function HomeScreen() {
     month: 'long',
     year: 'numeric',
   }).format(period);
-
-  useEffect(() => {
-    let active = true;
-
-    async function refreshRates() {
-      try {
-        const snapshot = await refreshExchangeRates(database);
-
-        if (active && snapshot) {
-          setExchangeRates((current) => {
-            if (
-              current &&
-              Date.parse(current.fetchedAt) >
-                Date.parse(snapshot.fetchedAt)
-            ) {
-              return current;
-            }
-
-            return snapshot;
-          });
-        }
-      } catch (error) {
-        console.warn('Failed to read exchange rate cache', error);
-      }
-    }
-
-    void refreshRates();
-
-    return () => {
-      active = false;
-    };
-  }, [database]);
 
   useFocusEffect(
     useCallback(() => {
@@ -125,7 +89,6 @@ export default function HomeScreen() {
             loadedCategories,
             loadedEntries,
             loadedCurrency,
-            cachedRates,
           ] = await Promise.all([
             getAccounts(database),
             getArchivedAccounts(database),
@@ -138,7 +101,6 @@ export default function HomeScreen() {
               categorySyncIds: categoryIds,
             }),
             getPrimaryCurrency(database),
-            getExchangeRateSnapshot(database),
           ]);
 
           if (!active) {
@@ -146,20 +108,6 @@ export default function HomeScreen() {
           }
 
           setPrimaryCurrency(loadedCurrency);
-
-          if (cachedRates) {
-            setExchangeRates((current) => {
-              if (
-                current &&
-                Date.parse(current.fetchedAt) >
-                  Date.parse(cachedRates.fetchedAt)
-              ) {
-                return current;
-              }
-
-              return cachedRates;
-            });
-          }
 
           setAccounts([
             ...activeAccounts,
@@ -199,41 +147,17 @@ export default function HomeScreen() {
 
   const chartCurrencyCode = primaryCurrency;
 
-  const categoryTotals = new Map<string, number>();
-
-  let conversionIncomplete = false;
-
-  for (const entry of entries) {
-    const account = accountsById.get(entry.accountSyncId);
-
-    if (!account) {
-      conversionIncomplete = true;
-      continue;
-    }
-
-    const convertedAmount = convertAmountMinor(
-      entry.amountMinor,
-      account.currencyCode,
-      primaryCurrency,
-      exchangeRates,
-    );
-
-    if (convertedAmount === null) {
-      conversionIncomplete = true;
-      continue;
-    }
-
-    const total =
-      (categoryTotals.get(entry.categorySyncId) ?? 0) +
-      convertedAmount;
-
-    if (!Number.isSafeInteger(total)) {
-      conversionIncomplete = true;
-      continue;
-    }
-
-    categoryTotals.set(entry.categorySyncId, total);
-  }
+  const {
+    categoryTotals,
+    conversionIncomplete,
+    refresh: refreshConversion,
+    refreshing: refreshingConversion,
+  } = useEntryConversion({
+    entries,
+    accounts,
+    primaryCurrency,
+    enabled: status === 'ready' && !createVisible,
+  });
 
   const chartColors = [
     '#6488E8',
@@ -311,6 +235,7 @@ export default function HomeScreen() {
         </View>
 
         <FlatList
+          showsVerticalScrollIndicator={false}
           data={
             status === 'ready'
               ? entries.filter((entry) =>
@@ -319,6 +244,8 @@ export default function HomeScreen() {
               : []
           }
           keyExtractor={(entry) => entry.syncId}
+          onRefresh={refreshConversion}
+          refreshing={refreshingConversion}
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
           ListHeaderComponent={<View style={styles.header}>
             <View style={styles.period}>
@@ -434,7 +361,7 @@ export default function HomeScreen() {
                   account.currencyCode,
                 )}
                 currencyCode={account.currencyCode}
-                currencySymbol={account.currencyCode}
+                currencySymbol={getCurrencySymbol(account.currencyCode)}
                 income={item.type === 'INCOME'}
                 accessibilityLabel={
                   translations.openEntry(item.title)

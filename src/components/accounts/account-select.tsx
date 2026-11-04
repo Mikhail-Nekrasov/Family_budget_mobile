@@ -12,6 +12,7 @@ import {
 import { AccountIcon } from '@/components/accounts/account-icon';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
+import { formatMoney } from '@/utils/format-money';
 
 type AccountSelectProps = {
   accounts: readonly Account[];
@@ -53,17 +54,10 @@ export function AccountSelect({
   );
 
   function formatBalance(account: Account): string {
-    const formatter = new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: account.currencyCode,
-      currencyDisplay: 'code',
-    });
-
-    const fractionDigits =
-      formatter.resolvedOptions().maximumFractionDigits ?? 2;
-
-    return formatter.format(
-      account.balanceMinor / 10 ** fractionDigits,
+    return formatMoney(
+      account.balanceMinor,
+      account.currencyCode,
+      locale,
     );
   }
 

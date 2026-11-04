@@ -10,6 +10,7 @@ import {
 
 import { AccountIcon } from '@/components/accounts/account-icon';
 import type { Account } from '@/models/account';
+import { formatMoney } from '@/utils/format-money';
 
 type AccountCardProps = {
   account: Account;
@@ -18,17 +19,14 @@ type AccountCardProps = {
   onLongPress?: () => void;
 };
 
-function formatBalance(account: Account, locale: string): string {
-  const formatter = new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: account.currencyCode,
-  });
-
-  const fractionDigits =
-    formatter.resolvedOptions().maximumFractionDigits ?? 2;
-
-  return formatter.format(
-    account.balanceMinor / 10 ** fractionDigits,
+function formatBalance(
+  account: Account,
+  locale: string,
+): string {
+  return formatMoney(
+    account.balanceMinor,
+    account.currencyCode,
+    locale,
   );
 }
 

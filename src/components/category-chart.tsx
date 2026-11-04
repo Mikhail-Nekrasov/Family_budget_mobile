@@ -2,6 +2,8 @@ import { useLanguage } from '@/hooks/use-language';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
+import { formatMoney } from '@/utils/format-money';
+
 export type ChartSegment = {
   id: string;
   name: string;
@@ -20,16 +22,15 @@ type Props = {
 
 export function CategoryChart({ segments, label, currencyCode, textColor, mutedColor, trackColor }: Props) {
   const { locale } = useLanguage();
-  const formatter = new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: currencyCode,
-  });
+  const total = segments.reduce(
+    (sum, segment) => sum + segment.amountMinor,
+    0,
+  );
 
-  const fractionDigits =
-    formatter.resolvedOptions().maximumFractionDigits ?? 2;
-  const total = segments.reduce((sum, segment) => sum + segment.amountMinor, 0);
-  const formattedTotal = formatter.format(
-    total / 10 ** fractionDigits,
+  const formattedTotal = formatMoney(
+    total,
+    currencyCode,
+    locale,
   );
   const radius = 82;
   const circumference = 2 * Math.PI * radius;

@@ -5,7 +5,7 @@ import { MenuButton } from '@/components/menu-button';
 import { useLanguage } from '@/hooks/use-language';
 
 export const unstable_settings = {
-  initialRouteName: 'categories',
+  anchor: 'categories',
 };
 
 export default function CategoriesLayout() {
