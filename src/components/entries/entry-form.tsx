@@ -2,6 +2,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { type ComponentRef, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -25,12 +26,18 @@ import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
 import type { Category } from '@/models/category';
+import type { Entry } from '@/models/entry';
 import type { EntryType } from '@/models/entry-type';
-import { getAccounts } from '@/repositories/account-repository';
+import {
+  getAccountBySyncId,
+  getAccounts,
+} from '@/repositories/account-repository';
 import { getCategories } from '@/repositories/category-repository';
 import {
   createEntry,
+  deleteEntry,
   getRecentEntryUsage,
+  updateEntry,
 } from '@/repositories/entry-repository';
 import { parseAmountToMinor } from '@/utils/money';
 import { rankByRecentUsage } from '@/utils/rank-by-recent-usage';
@@ -38,6 +45,7 @@ import { rankByRecentUsage } from '@/utils/rank-by-recent-usage';
 
 type EntryFormProps = {
   type: EntryType;
+  entry?: Entry;
   onSaved: () => void;
   onCancel: () => void;
 };
@@ -46,6 +54,7 @@ type LoadStatus = 'loading' | 'ready' | 'error';
 
 export function EntryForm({
   type,
+  entry,
   onSaved,
   onCancel,
 }: EntryFormProps) {
@@ -53,7 +62,7 @@ export function EntryForm({
   const { translations, locale } = useLanguage();
   const dark = useColorScheme() === 'dark';
 
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(entry?.title ?? '');
   const [amount, setAmount] = useState('');
   const titleRef = useRef<ComponentRef<typeof TextInput>>(null);
   const amountRef = useRef<ComponentRef<typeof TextInput>>(null);
@@ -65,8 +74,12 @@ export function EntryForm({
     showFormError,
   } = useFormErrors<'title' | 'amount' | 'category'>();
 
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(entry?.description ?? '');
   const [dateTime, setDateTime] = useState(() => {
+    if (entry) {
+      return new Date(entry.dateTime);
+    }
+
     const now = new Date();
     now.setSeconds(0, 0);
     return now;
@@ -111,14 +124,31 @@ export function EntryForm({
           loadedAccounts,
           loadedCategories,
           recentUsage,
+          originalAccount,
         ] = await Promise.all([
           getAccounts(database),
           getCategories(database, type),
           getRecentEntryUsage(database, type),
+          entry
+            ? getAccountBySyncId(database, entry.accountSyncId)
+            : Promise.resolve(null),
         ]);
 
         if (!active) {
           return;
+        }
+
+        if (entry && !originalAccount) {
+          throw new Error('Original account not found');
+        }
+
+        if (
+          originalAccount &&
+          !loadedAccounts.some(
+            (account) => account.syncId === originalAccount.syncId,
+          )
+        ) {
+          loadedAccounts.push(originalAccount);
         }
 
         const rankedAccounts = rankByRecentUsage(
@@ -136,9 +166,27 @@ export function EntryForm({
         setAccounts(rankedAccounts);
         setCategories(rankedCategories);
 
-        setAccountSyncId(rankedAccounts[0]?.syncId ?? null);
+        setAccountSyncId(
+          entry?.accountSyncId ?? rankedAccounts[0]?.syncId ?? null,
+        );
 
-        setCategorySyncId(rankedCategories[0]?.syncId ?? null);
+        if (entry && originalAccount) {
+          const digits = new Intl.NumberFormat('en', {
+            style: 'currency',
+            currency: originalAccount.currencyCode,
+          }).resolvedOptions().maximumFractionDigits ?? 2;
+
+          const raw = String(entry.amountMinor).padStart(digits + 1, '0');
+          setAmount(
+            digits === 0
+              ? raw
+              : `${raw.slice(0, -digits)}.${raw.slice(-digits)}`,
+          );
+        }
+
+        setCategorySyncId(
+          entry?.categorySyncId ?? rankedCategories[0]?.syncId ?? null,
+        );
 
         setStatus('ready');
       } catch (error) {
@@ -155,7 +203,7 @@ export function EntryForm({
     return () => {
       active = false;
     };
-  }, [database, type]);
+  }, [database, type, entry]);
 
   const selectedAccount = accounts.find(
     (account) => account.syncId === accountSyncId,
@@ -220,8 +268,27 @@ export function EntryForm({
       currency: selectedAccount.currencyCode,
     }).resolvedOptions().maximumFractionDigits ?? 2;
 
+    const normalizedAmount = amount.trim().replace(',', '.');
+
+    const hasNonZeroFraction =
+      /^-?\d+\.\d+$/.test(normalizedAmount) &&
+      /[1-9]/.test(normalizedAmount.split('.')[1]);
+
+    if (fractionDigits === 0 && hasNonZeroFraction) {
+      showFieldError(
+        'amount',
+        translations.currencyWholeAmountRequired,
+        amountRef,
+      );
+      return;
+    }
+
+    const amountToParse = fractionDigits === 0
+      ? normalizedAmount.replace(/\.0+$/, '')
+      : normalizedAmount;
+
     const amountMinor = parseAmountToMinor(
-      amount,
+      amountToParse,
       fractionDigits,
     );
 
@@ -238,7 +305,7 @@ export function EntryForm({
     setSaving(true);
 
     try {
-      await createEntry(database, {
+      const input = {
         title,
         type,
         amountMinor,
@@ -246,7 +313,13 @@ export function EntryForm({
         description,
         accountSyncId: selectedAccount.syncId,
         categorySyncId,
-      });
+      };
+
+      if (entry) {
+        await updateEntry(database, entry.syncId, input);
+      } else {
+        await createEntry(database, input);
+      }
     } catch (error) {
       console.warn('Failed to save entry', error);
 
@@ -258,6 +331,43 @@ export function EntryForm({
     }
 
     onSaved();
+  }
+
+  async function removeEntry() {
+    if (!entry || savingRef.current) {
+      return;
+    }
+
+    savingRef.current = true;
+    setSaving(true);
+
+    try {
+      await deleteEntry(database, entry.syncId);
+    } catch (error) {
+      console.warn('Failed to delete entry', error);
+      showFormError(translations.deleteEntryError);
+      return;
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+
+    onSaved();
+  }
+
+  function confirmDeleteEntry() {
+    if (!entry || savingRef.current) {
+      return;
+    }
+
+    Alert.alert('', translations.deleteEntryConfirmation(entry.title), [
+      { text: translations.cancel, style: 'cancel' },
+      {
+        text: translations.deleteEntry,
+        style: 'destructive',
+        onPress: () => void removeEntry(),
+      },
+    ]);
   }
 
   return (
@@ -273,9 +383,13 @@ export function EntryForm({
             keyboardDismissMode="on-drag"
           >
             <Text style={[styles.title, { color: palette.text }]}>
-              {type === 'EXPENSE'
-                ? translations.newExpense
-                : translations.newIncome}
+              {entry
+                ? type === 'EXPENSE'
+                  ? translations.editExpense
+                  : translations.editIncome
+                : type === 'EXPENSE'
+                  ? translations.newExpense
+                  : translations.newIncome}
             </Text>
 
             {status === 'loading' ? (
@@ -326,7 +440,10 @@ export function EntryForm({
                 <AccountSelect
                   accounts={accounts}
                   value={accountSyncId}
-                  onChange={setAccountSyncId}
+                  onChange={(syncId) => {
+                    setAccountSyncId(syncId);
+                    clearError('amount');
+                  }}
                   disabled={saving}
                 />
 
@@ -432,6 +549,16 @@ export function EntryForm({
                   nativeGlass
                   loading={saving}
                   onPress={() => void saveEntry()}
+                />
+              )}
+
+              {entry && status === 'ready' && (
+                <AppButton
+                  title={translations.deleteEntry}
+                  variant="danger"
+                  nativeGlass
+                  disabled={saving}
+                  onPress={confirmDeleteEntry}
                 />
               )}
 

@@ -25,7 +25,7 @@ import { refreshExchangeRates } from '@/services/exchange-rate-service';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
@@ -35,6 +35,7 @@ export default function HomeScreen() {
   const [accountIds, setAccountIds] = useState<string[]>([]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [createVisible, setCreateVisible] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
 
   const database = useSQLiteContext();
 
@@ -363,7 +364,10 @@ export default function HomeScreen() {
                     ? translations.addExpense
                     : translations.addIncome
                 }
-                onPress={() => setCreateVisible(true)}
+                onPress={() => {
+                  setEditingEntry(null);
+                  setCreateVisible(true);
+                }}
                 style={[
                   styles.addButton,
                   { backgroundColor: palette.accent },
@@ -435,14 +439,10 @@ export default function HomeScreen() {
                 accessibilityLabel={
                   translations.openEntry(item.title)
                 }
-                onPress={() =>
-                  Alert.alert(
-                    item.title,
-                    translations.editEntryPlaceholder(
-                      item.syncId,
-                    ),
-                  )
-                }
+                onPress={() => {
+                  setEditingEntry(item);
+                  setCreateVisible(true);
+                }}
               />
             );
           }
@@ -464,7 +464,8 @@ export default function HomeScreen() {
             }}
           >
             <EntryForm
-              type={type}
+              type={editingEntry?.type ?? type}
+              entry={editingEntry ?? undefined}
               onSaved={() => setCreateVisible(false)}
               onCancel={() => setCreateVisible(false)}
             />

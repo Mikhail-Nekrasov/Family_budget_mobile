@@ -274,3 +274,150 @@ export async function getRecentEntryUsage(
     type,
   );
 }
+
+export type UpdateEntryInput = Omit<CreateEntryInput, 'type'>;
+
+async function changeBalance(
+  database: SQLiteDatabase,
+  accountSyncId: string,
+  delta: number,
+): Promise<void> {
+  const account = await getAccountBySyncId(database, accountSyncId);
+
+  if (!account || !Number.isSafeInteger(account.balanceMinor)) {
+    throw new Error('Account balance is unavailable');
+  }
+
+  const balance = account.balanceMinor + delta;
+
+  if (!Number.isSafeInteger(balance)) {
+    throw new Error('Resulting balance is outside the supported range');
+  }
+
+  const result = await database.runAsync(
+    'UPDATE accounts SET balance_minor = ? WHERE sync_id = ?',
+    balance,
+    accountSyncId,
+  );
+
+  if (result.changes !== 1) {
+    throw new Error('Account balance could not be updated');
+  }
+}
+
+export async function updateEntry(
+  database: SQLiteDatabase,
+  syncId: string,
+  input: UpdateEntryInput,
+): Promise<void> {
+  const title = input.title.trim();
+
+  if (title.length === 0 || title.length > 255) {
+    throw new Error('Invalid entry title');
+  }
+
+  if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor <= 0) {
+    throw new Error('Invalid entry amount');
+  }
+
+  const dateTime = formatLocalDateTime(input.dateTime);
+
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    const previous = await getEntryBySyncId(transaction, syncId);
+
+    if (!previous) {
+      throw new Error('Entry not found');
+    }
+
+    const targetAccount = await getAccountBySyncId(
+      transaction,
+      input.accountSyncId,
+    );
+
+    if (
+      !targetAccount ||
+      (targetAccount.archivedAt !== null &&
+        targetAccount.syncId !== previous.accountSyncId)
+    ) {
+      throw new Error('Target account is unavailable');
+    }
+
+    const category = await getCategoryBySyncId(
+      transaction,
+      input.categorySyncId,
+    );
+
+    if (!category || category.type !== previous.type) {
+      throw new Error('Category does not match entry type');
+    }
+
+    const direction = previous.type === 'EXPENSE' ? -1 : 1;
+
+    if (previous.accountSyncId === input.accountSyncId) {
+      await changeBalance(
+        transaction,
+        previous.accountSyncId,
+        direction * (input.amountMinor - previous.amountMinor),
+      );
+    } else {
+      await changeBalance(
+        transaction,
+        previous.accountSyncId,
+        -direction * previous.amountMinor,
+      );
+      await changeBalance(
+        transaction,
+        input.accountSyncId,
+        direction * input.amountMinor,
+      );
+    }
+
+    const result = await transaction.runAsync(
+      `
+        UPDATE entries
+        SET title = ?, amount_minor = ?, date_time = ?,
+            description = ?, account_sync_id = ?, category_sync_id = ?
+        WHERE sync_id = ?
+      `,
+      title,
+      input.amountMinor,
+      dateTime,
+      input.description?.trim() || null,
+      input.accountSyncId,
+      input.categorySyncId,
+      syncId,
+    );
+
+    if (result.changes !== 1) {
+      throw new Error('Entry could not be updated');
+    }
+  });
+}
+
+export async function deleteEntry(
+  database: SQLiteDatabase,
+  syncId: string,
+): Promise<void> {
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    const entry = await getEntryBySyncId(transaction, syncId);
+
+    if (!entry) {
+      throw new Error('Entry not found');
+    }
+
+    await changeBalance(
+      transaction,
+      entry.accountSyncId,
+      entry.type === 'EXPENSE' ? entry.amountMinor : -entry.amountMinor,
+    );
+
+    const result = await transaction.runAsync(
+      'DELETE FROM entries WHERE sync_id = ?',
+      syncId,
+    );
+
+    if (result.changes !== 1) {
+      throw new Error('Entry could not be deleted');
+    }
+  });
+}

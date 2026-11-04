@@ -137,4 +137,13 @@ export const ru: Messages = {
   savePreferencesError: 'Не удалось сохранить настройки',
 
   conversionUnavailable: 'Для расчёта итога нужны курсы валют',
+
+  editExpense: 'Редактирование расхода',
+  editIncome: 'Редактирование дохода',
+  deleteEntry: 'Удалить операцию',
+  deleteEntryError: 'Не удалось удалить операцию',
+  deleteEntryConfirmation: (title: string) =>
+    `Удалить операцию «${title}» без возможности восстановления?`,
+
+  currencyWholeAmountRequired: 'В этой валюте сумма должна быть целым числом',
 };

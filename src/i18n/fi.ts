@@ -137,4 +137,13 @@ export const fi: Messages = {
   savePreferencesError: 'Asetuksia ei voitu tallentaa',
 
   conversionUnavailable: 'Yhteissumman laskemiseen tarvitaan valuuttakurssit',
+
+  editExpense: 'Muokkaa menoa',
+  editIncome: 'Muokkaa tuloa',
+  deleteEntry: 'Poista tapahtuma',
+  deleteEntryError: 'Tapahtumaa ei voitu poistaa',
+  deleteEntryConfirmation: (title: string) =>
+    `Poistetaanko tapahtuma ”${title}” pysyvästi?`,
+
+  currencyWholeAmountRequired: 'Tässä valuutassa summan on oltava kokonaisluku',
 };

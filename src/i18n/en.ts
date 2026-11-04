@@ -135,6 +135,15 @@ export const en = {
   savePreferencesError: 'Could not save settings',
 
   conversionUnavailable: 'Exchange rates are required to calculate the total',
+
+  editExpense: 'Edit expense',
+  editIncome: 'Edit income',
+  deleteEntry: 'Delete entry',
+  deleteEntryError: 'Could not delete the entry',
+  deleteEntryConfirmation: (title: string) =>
+    `Permanently delete "${title}"?`,
+  
+  currencyWholeAmountRequired: 'This currency does not allow decimal amounts',
 };
 
 export type Messages = typeof en;
