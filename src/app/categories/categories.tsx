@@ -35,6 +35,7 @@ export default function CategoriesScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [createVisible, setCreateVisible] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
   const dark = useColorScheme() === 'dark';
 
@@ -93,7 +94,10 @@ export default function CategoriesScreen() {
             title={translations.newCategory}
             rightSymbol="＋"
             nativeGlass
-            onPress={() => setCreateVisible(true)}
+            onPress={() => {
+              setEditingCategory(null);
+              setCreateVisible(true);
+            }}
           />
         </View>
         <View style={styles.tabs}>
@@ -138,7 +142,13 @@ export default function CategoriesScreen() {
             )
           }
           renderItem={({ item }) => (
-            <CategoryCard category={item} />
+            <CategoryCard
+              category={item}
+              onPress={() => {
+                setEditingCategory(item);
+                setCreateVisible(true);
+              }}
+            />
           )}
         />
         <Modal
@@ -155,9 +165,10 @@ export default function CategoriesScreen() {
           }}
         >
           {createVisible && (
-            <SafeAreaProvider>
+            <SafeAreaProvider style={{ backgroundColor: dark ? '#111722' : '#F5F6F9' }}>
               <CategoryForm
                 type={type}
+                category={editingCategory ?? undefined}
                 onSaved={() => setCreateVisible(false)}
                 onCancel={() => setCreateVisible(false)}
               />

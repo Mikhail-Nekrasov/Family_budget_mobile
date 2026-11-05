@@ -40,6 +40,8 @@ import {
   updateEntry,
 } from '@/repositories/entry-repository';
 import { parseAmountToMinor } from '@/utils/money';
+import { getCategoryName } from '@/utils/category-name';
+import { getCategoryPreviewIds } from '@/utils/category-preview';
 import { rankByRecentUsage } from '@/utils/rank-by-recent-usage';
 
 
@@ -59,7 +61,7 @@ export function EntryForm({
   onCancel,
 }: EntryFormProps) {
   const database = useSQLiteContext();
-  const { translations, locale } = useLanguage();
+  const { translations, locale, language } = useLanguage();
   const dark = useColorScheme() === 'dark';
 
   const [title, setTitle] = useState(entry?.title ?? '');
@@ -87,6 +89,7 @@ export function EntryForm({
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryPreviewIds, setCategoryPreviewIds] = useState<string[]>([]);
 
   const [accountSyncId, setAccountSyncId] = useState<string | null>(
     null,
@@ -165,6 +168,10 @@ export function EntryForm({
 
         setAccounts(rankedAccounts);
         setCategories(rankedCategories);
+        setCategoryPreviewIds(getCategoryPreviewIds(
+          rankedCategories,
+          recentUsage[0]?.categorySyncId,
+        ));
 
         setAccountSyncId(
           entry?.accountSyncId ?? rankedAccounts[0]?.syncId ?? null,
@@ -481,8 +488,9 @@ export function EntryForm({
                   title={translations.entryCategory}
                   options={categories.map((category) => ({
                     value: category.syncId,
-                    label: category.name,
+                    label: getCategoryName(category, language),
                   }))}
+                  previewValues={categoryPreviewIds}
                   value={categorySyncId}
                   onChange={(syncId) => {
                     setCategorySyncId(syncId);

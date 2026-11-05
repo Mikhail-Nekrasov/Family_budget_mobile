@@ -85,6 +85,15 @@ function AppNavigation() {
           />
 
           <Drawer.Screen
+            name="exchange-rates"
+            options={{
+              drawerLabel: translations.exchangeRates,
+              title: translations.exchangeRates,
+              headerShown: false,
+            }}
+          />
+
+          <Drawer.Screen
             name="settings"
             options={{
               drawerLabel: translations.settings,

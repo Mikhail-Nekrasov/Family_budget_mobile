@@ -1,6 +1,7 @@
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -8,15 +9,20 @@ import {
 } from 'react-native';
 
 import { CategoryIcon } from '@/components/categories/category-icon';
+import { useLanguage } from '@/hooks/use-language';
+import { getCategoryName } from '@/utils/category-name';
 import type { Category } from '@/models/category';
 
 type CategoryCardProps = {
   category: Category;
+  onPress: () => void;
 };
 
 export function CategoryCard({
   category,
+  onPress,
 }: CategoryCardProps) {
+  const { language } = useLanguage();
   const dark = useColorScheme() === 'dark';
 
   const palette = dark
@@ -42,7 +48,12 @@ export function CategoryCard({
     : palette.highlight;
 
   return (
-    <View style={styles.card}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={getCategoryName(category, language)}
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, { opacity: pressed ? 0.75 : 1 }]}
+    >
       <BlurView
         intensity={15}
         tint="default"
@@ -103,9 +114,9 @@ export function CategoryCard({
           { color: palette.text },
         ]}
       >
-        {category.name}
+        {getCategoryName(category, language)}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 

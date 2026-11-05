@@ -1,6 +1,10 @@
+import { DEFAULT_CATEGORIES } from '@/constants/default-categories';
+import { en } from '@/i18n/en';
+
+import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 13;
+const DATABASE_VERSION = 14;
 
 export async function initializeDatabase(
   database: SQLiteDatabase,
@@ -271,6 +275,48 @@ export async function initializeDatabase(
         );
       `);
     }
+
+    if (currentVersion < 14) {
+      await database.execAsync(`
+        ALTER TABLE categories ADD COLUMN default_key TEXT;
+        ALTER TABLE categories ADD COLUMN name_overrides_json TEXT NOT NULL
+          DEFAULT '{}' CHECK (json_valid(name_overrides_json));
+        ALTER TABLE categories ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 1000000
+          CHECK (sort_order >= 0);
+
+        CREATE UNIQUE INDEX idx_categories_default_key
+          ON categories(type, default_key) WHERE default_key IS NOT NULL;
+
+        CREATE TRIGGER prevent_category_delete_with_entries
+        BEFORE DELETE ON categories
+        WHEN EXISTS (SELECT 1 FROM entries WHERE category_sync_id = OLD.sync_id)
+        BEGIN
+          SELECT RAISE(ABORT, 'Cannot delete a category with entries');
+        END;
+
+        CREATE TRIGGER prevent_category_type_change
+        BEFORE UPDATE OF type ON categories
+        WHEN NEW.type != OLD.type
+        BEGIN
+          SELECT RAISE(ABORT, 'Cannot change category type');
+        END;
+      `);
+
+      for (const definition of DEFAULT_CATEGORIES) {
+        await database.runAsync(
+          `INSERT INTO categories (
+            sync_id, name, type, icon_key, default_key, sort_order
+          ) VALUES (?, ?, ?, ?, ?, ?)`,
+          randomUUID(),
+          en.defaultCategories[definition.key],
+          definition.type,
+          definition.iconKey,
+          definition.key,
+          definition.sortOrder,
+        );
+      }
+    }
+
 
     await database.execAsync(
       `PRAGMA user_version = ${DATABASE_VERSION}`,

@@ -18,6 +18,7 @@ import {
 import { getCategories } from '@/repositories/category-repository';
 import { getEntries } from '@/repositories/entry-repository';
 import { getPrimaryCurrency } from '@/repositories/preferences-repository';
+import { getCategoryName } from '@/utils/category-name';
 import { getCurrencySymbol } from '@/utils/format-money';
 
 import { useFocusEffect } from 'expo-router';
@@ -27,7 +28,7 @@ import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View, 
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
-  const { translations, locale } = useLanguage();
+  const { translations, locale, language } = useLanguage();
   const [type, setType] = useState<EntryType>('EXPENSE');
   const [period, setPeriod] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [accountIds, setAccountIds] = useState<string[]>([]);
@@ -180,7 +181,7 @@ export default function HomeScreen() {
 
       return {
         id: category.syncId,
-        name: category.name,
+        name: getCategoryName(category, language),
         color: chartColors[hash % chartColors.length],
         amountMinor: categoryTotals.get(category.syncId) ?? 0,
       };
@@ -318,7 +319,7 @@ export default function HomeScreen() {
               }))}
               categoryOptions={categories.map((category) => ({
                 id: category.syncId,
-                name: category.name,
+                name: getCategoryName(category, language),
               }))}
               palette={palette} />
           </View>}

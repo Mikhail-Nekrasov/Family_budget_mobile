@@ -1,6 +1,7 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { useRef, useState, type ComponentRef } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -21,34 +22,33 @@ import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import type { Category } from '@/models/category';
 import type { EntryType } from '@/models/entry-type';
-import { createCategory } from '@/repositories/category-repository';
-
-const CATEGORY_ICON_KEYS = [
-  'category',
-  'groceries',
-  'housing',
-  'transport',
-  'food',
-  'salary',
-  'leisure',
-  'health',
-] as const;
+import {
+  canDeleteLocalCategory,
+  CategoryInUseError,
+  createCategory,
+  deleteLocalCategory,
+  updateCategory,
+} from '@/repositories/category-repository';
+import { CATEGORY_ICON_KEYS } from '@/constants/category-icons';
+import { getCategoryName } from '@/utils/category-name';
 
 type CategoryFormProps = {
   type: EntryType;
+  category?: Category;
   onSaved: (category: Category) => void;
   onCancel: () => void;
 };
 
 export function CategoryForm({
   type,
+  category,
   onSaved,
   onCancel,
 }: CategoryFormProps) {
   const database = useSQLiteContext();
-  const { translations } = useLanguage();
+  const { translations, language } = useLanguage();
 
-  const [name, setName] = useState('');
+  const [name, setName] = useState(() => category ? getCategoryName(category, language) : '');
 
   const nameRef = useRef<ComponentRef<typeof TextInput>>(null);
 
@@ -59,9 +59,26 @@ export function CategoryForm({
     showFormError,
   } = useFormErrors<'name'>();
 
-  const [iconKey, setIconKey] = useState<string>('category');
+  const [iconKey, setIconKey] = useState<string>(category?.iconKey ?? 'category');
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+
+  const [canDelete, setCanDelete] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!category) {
+      return;
+    }
+    let active = true;
+    canDeleteLocalCategory(database, category.syncId)
+      .then((allowed) => {
+        if (active) {
+          setCanDelete(allowed);
+        }
+      })
+      .catch((error) => console.warn('Failed to check category usage', error));
+    return () => { active = false; };
+  }, [database, category]);
 
   const dark = useColorScheme() === 'dark';
 
@@ -98,14 +115,30 @@ export function CategoryForm({
     savingRef.current = true;
     setSaving(true);
 
-    let createdCategory: Category;
+    let savedCategory: Category;
 
     try {
-      createdCategory = await createCategory(database, {
-        name,
-        type,
-        iconKey,
-      });
+      if (category && name.trim() !== getCategoryName(category, language)) {
+        const approved = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            '',
+            category.defaultKey === null
+              ? translations.categoryRenameWarning
+              : translations.categoryRenameLocalizedWarning,
+            [
+              { text: translations.cancel, style: 'cancel', onPress: () => resolve(false) },
+              { text: translations.categoryRenameConfirm, onPress: () => resolve(true) },
+            ],
+            { cancelable: false },
+          );
+        });
+        if (!approved) {
+          return;
+        }
+      }
+      savedCategory = category
+        ? await updateCategory(database, category.syncId, { name, iconKey, language })
+        : await createCategory(database, { name, type, iconKey });
     } catch (error) {
       console.warn('Failed to save category', error);
 
@@ -116,7 +149,45 @@ export function CategoryForm({
       setSaving(false);
     }
 
-    onSaved(createdCategory);
+    onSaved(savedCategory);
+  }
+
+  async function removeCategory() {
+    if (!category || savingRef.current) {
+      return;
+    }
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      await deleteLocalCategory(database, category.syncId);
+    } catch (error) {
+      console.warn('Failed to delete category', error);
+      if (error instanceof CategoryInUseError) {
+        setCanDelete(false);
+        showFormError(translations.categoryInUse);
+      } else {
+        showFormError(translations.deleteCategoryError);
+      }
+      return;
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+    onCancel();
+  }
+
+  function confirmDelete() {
+    if (canDelete !== true || savingRef.current) {
+      return;
+    }
+    Alert.alert('', translations.categoryDeleteConfirmation, [
+      { text: translations.cancel, style: 'cancel' },
+      {
+        text: translations.deleteCategory,
+        style: 'destructive',
+        onPress: () => void removeCategory(),
+      },
+    ]);
   }
 
   return (
@@ -137,7 +208,7 @@ export function CategoryForm({
                 { color: palette.text },
               ]}
             >
-              {translations.newCategory}
+              {category ? translations.editCategory : translations.newCategory}
             </Text>
 
             <Text
@@ -168,6 +239,7 @@ export function CategoryForm({
                 setName(text);
                 clearError('name');
               }}
+              maxLength={255}
               editable={!saving}
               returnKeyType="done"
               submitBehavior="blurAndSubmit"
@@ -184,6 +256,14 @@ export function CategoryForm({
             />
 
             <FieldError message={errors.name} />
+
+            {category && (
+              <Text style={[styles.hint, { color: palette.muted }]}>
+                {category.defaultKey === null
+                  ? translations.categoryCustomNameHint
+                  : translations.categoryLocalNameHint}
+              </Text>
+            )}
 
             <Text
               style={[
@@ -223,6 +303,23 @@ export function CategoryForm({
                 disabled={saving}
                 onPress={() => void saveCategory()}
               />
+
+              {category && (
+                <>
+                  <AppButton
+                    title={translations.deleteCategory}
+                    nativeGlass
+                    variant="danger"
+                    disabled={saving || canDelete !== true}
+                    onPress={confirmDelete}
+                  />
+                  {canDelete === false && (
+                    <Text style={[styles.hint, { color: palette.muted }]}>
+                      {translations.categoryInUse}
+                    </Text>
+                  )}
+                </>
+              )}
 
               <AppButton
                 title={translations.cancel}
@@ -264,6 +361,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
+  },
+  hint: {
+    fontSize: 13,
   },
   actions: {
     gap: 12,
