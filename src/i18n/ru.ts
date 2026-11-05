@@ -65,6 +65,23 @@ export const ru: Messages = {
   ratesLoadError: 'Не удалось обновить курсы · показаны сохранённые данные, если они есть',
   ratesMissing: 'Некоторых курсов нет · подключитесь к интернету и нажмите «Обновить»',
 
+  periodTitle: "Период",
+  periodMonth: "Месяц",
+  periodYear: "Год",
+  periodAllTime: "За всё время",
+  periodCustom: "Выбранный период",
+  periodFrom: "С даты",
+  periodThrough: "По дату",
+  periodShow: "Показать",
+  periodExpensesFor: "Показать расходы за",
+  periodIncomeFor: "Показать доходы за",
+  periodInvalidRange: "Выберите конечную дату не раньше начальной",
+  periodPrevious: "Предыдущий период",
+  periodNext: "Следующий период",
+  noEntriesInPeriod: "Нет операций за этот период",
+
+  periodFutureNotAllowed: "Выберите дату не позже сегодняшней",
+
   home: 'Главная',
 
   expenses: 'Расходы',

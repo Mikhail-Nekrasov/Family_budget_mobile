@@ -65,6 +65,23 @@ export const fi: Messages = {
   ratesLoadError: 'Kursseja ei voitu päivittää · tallennetut kurssit näkyvät, jos niitä on',
   ratesMissing: 'Osa kursseista puuttuu · yhdistä internetiin ja päivitä',
 
+  periodTitle: "Ajanjakso",
+  periodMonth: "Kuukausi",
+  periodYear: "Vuosi",
+  periodAllTime: "Koko ajalta",
+  periodCustom: "Valittu ajanjakso",
+  periodFrom: "Alkaen",
+  periodThrough: "Päättyen",
+  periodShow: "Näytä",
+  periodExpensesFor: "Näytä menot ajalta",
+  periodIncomeFor: "Näytä tulot ajalta",
+  periodInvalidRange: "Valitse päättymispäivä, joka ei ole ennen alkamispäivää",
+  periodPrevious: "Edellinen ajanjakso",
+  periodNext: "Seuraava ajanjakso",
+  noEntriesInPeriod: "Ei tapahtumia tältä ajanjaksolta",
+
+  periodFutureNotAllowed: "Valitse päivämäärä, joka ei ole tämän päivän jälkeen",
+
   home: 'Etusivu',
 
   expenses: 'Menot',

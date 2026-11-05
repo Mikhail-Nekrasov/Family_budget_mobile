@@ -18,10 +18,13 @@ type Props = {
   textColor: string;
   mutedColor: string;
   trackColor: string;
+  size?: number;
+  available?: boolean;
+  loading?: boolean;
 };
 
-export function CategoryChart({ segments, label, currencyCode, textColor, mutedColor, trackColor }: Props) {
-  const { locale } = useLanguage();
+export function CategoryChart({ segments, label, currencyCode, textColor, mutedColor, trackColor, size = 240, available = true, loading = false }: Props) {
+  const { locale, translations } = useLanguage();
   const total = segments.reduce(
     (sum, segment) => sum + segment.amountMinor,
     0,
@@ -37,11 +40,11 @@ export function CategoryChart({ segments, label, currencyCode, textColor, mutedC
   let offset = 0;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.chart} accessible accessibilityLabel={`${label}: ${formattedTotal}`}>
+    <View style={[styles.container, { width: size, height: size }]}>
+      <View style={[styles.chart, { width: size, height: size }]} accessible accessibilityLabel={`${label}: ${available ? formattedTotal : loading ? translations.loading : translations.conversionUnavailable}`}>
         <Svg width="100%" height="100%" viewBox="0 0 200 200">
           <Circle cx={100} cy={100} r={radius} fill="none" stroke={trackColor} strokeWidth={19} />
-          {total > 0 && segments.map((segment) => {
+          {available && total > 0 && segments.map((segment) => {
             const length = segment.amountMinor / total * circumference;
             const start = offset;
             offset += length;
@@ -54,7 +57,12 @@ export function CategoryChart({ segments, label, currencyCode, textColor, mutedC
         <View style={styles.center} pointerEvents="none">
           <Text style={[styles.label, { color: mutedColor }]}>{label}</Text>
           <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55}
-            style={[styles.total, { color: textColor }]}>{formattedTotal}</Text>
+            style={[styles.total, { color: textColor }]}>{available ? formattedTotal : '—'}</Text>
+          {!available && (
+            <Text style={[styles.notice, { color: mutedColor }]}>
+              {loading ? translations.loading : translations.conversionUnavailable}
+            </Text>
+          )}
         </View>
       </View>
 
@@ -65,14 +73,13 @@ export function CategoryChart({ segments, label, currencyCode, textColor, mutedC
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    paddingVertical: 1
+    justifyContent: 'center'
   },
   chart: {
-    width: '100%',
-    maxWidth: 240,
-    aspectRatio: 1
+    position: 'relative'
   },
   center: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, justifyContent: 'center', alignItems: 'center', paddingHorizontal: '17%', gap: 8 },
+  notice: { fontSize: 12, textAlign: 'center' },
   label: { fontSize: 13, textAlign: 'center' },
   total: { fontSize: 25, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });

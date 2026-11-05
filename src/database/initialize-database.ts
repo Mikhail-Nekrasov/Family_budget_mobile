@@ -4,7 +4,7 @@ import { en } from '@/i18n/en';
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 14;
+const DATABASE_VERSION = 15;
 
 export async function initializeDatabase(
   database: SQLiteDatabase,
@@ -317,6 +317,11 @@ export async function initializeDatabase(
       }
     }
 
+    if (currentVersion < 15) {
+      await database.execAsync(`
+        ALTER TABLE exchange_rate_snapshot ADD COLUMN checked_at TEXT;
+      `);
+    }
 
     await database.execAsync(
       `PRAGMA user_version = ${DATABASE_VERSION}`,

@@ -3,6 +3,7 @@ import { EntryForm } from '@/components/entries/entry-form';
 import { EntryCard } from '@/components/entry-card';
 import { HomeFilters } from '@/components/home-filters';
 import { MenuButton } from '@/components/menu-button';
+import { PeriodSelector } from '@/components/periods/period-selector';
 import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
 import { useEntryConversion } from '@/hooks/use-entry-conversion';
@@ -10,27 +11,45 @@ import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
 import type { Category } from '@/models/category';
 import type { Entry } from '@/models/entry';
+import type { EntryPeriod } from '@/models/entry-period';
 import type { EntryType } from '@/models/entry-type';
-import {
-  getAccounts,
-  getArchivedAccounts,
-} from '@/repositories/account-repository';
+import { getAccounts, getArchivedAccounts } from '@/repositories/account-repository';
 import { getCategories } from '@/repositories/category-repository';
 import { getEntries } from '@/repositories/entry-repository';
 import { getPrimaryCurrency } from '@/repositories/preferences-repository';
 import { getCategoryName } from '@/utils/category-name';
+import {
+  currentMonthPeriod,
+  formatEntryPeriod,
+  periodBounds,
+  shiftPeriod
+} from '@/utils/entry-period';
 import { getCurrencySymbol } from '@/utils/format-money';
 
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme,
+  useWindowDimensions
+} from 'react-native';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  useSafeAreaInsets
+} from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const { translations, locale, language } = useLanguage();
   const [type, setType] = useState<EntryType>('EXPENSE');
-  const [period, setPeriod] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [period, setPeriod] = useState<EntryPeriod>(() => currentMonthPeriod());
+  const [periodVisible, setPeriodVisible] = useState(false);
   const [accountIds, setAccountIds] = useState<string[]>([]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [createVisible, setCreateVisible] = useState(false);
@@ -50,15 +69,16 @@ export default function HomeScreen() {
 
   const dark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const chartSize = Math.min(240, Math.max(80, width - insets.left - insets.right - 40 - 112));
   const palette = dark
     ? { background: '#111722', card: '#1C2432', text: '#F0F3FA', muted: '#A8B3C5', line: '#333F52', accent: '#A0B8FF', icon: '#29354B' }
     : { background: '#F5F6F9', card: '#FFFFFF', text: '#192238', muted: '#6C7890', line: '#E0E5EE', accent: '#365BBC', icon: '#EAF0FC' };
 
 
-  const monthLabel = new Intl.DateTimeFormat(locale, {
-    month: 'long',
-    year: 'numeric',
-  }).format(period);
+  const periodLabel = formatEntryPeriod(period, locale, translations.periodAllTime);
+  const previousAvailable = shiftPeriod(period, -1) !== period;
+  const nextAvailable = shiftPeriod(period, 1) !== period;
 
   useFocusEffect(
     useCallback(() => {
@@ -70,18 +90,6 @@ export default function HomeScreen() {
 
       async function loadHome() {
         setStatus('loading');
-
-        const from = new Date(
-          period.getFullYear(),
-          period.getMonth(),
-          1,
-        );
-
-        const to = new Date(
-          period.getFullYear(),
-          period.getMonth() + 1,
-          1,
-        );
 
         try {
           const [
@@ -96,8 +104,7 @@ export default function HomeScreen() {
             getCategories(database, type),
             getEntries(database, {
               type,
-              from,
-              to,
+              ...periodBounds(period),
               accountSyncIds: accountIds,
               categorySyncIds: categoryIds,
             }),
@@ -151,8 +158,6 @@ export default function HomeScreen() {
   const {
     categoryTotals,
     conversionIncomplete,
-    refresh: refreshConversion,
-    refreshing: refreshingConversion,
   } = useEntryConversion({
     entries,
     accounts,
@@ -203,8 +208,8 @@ export default function HomeScreen() {
     }).format(amountMinor / 10 ** fractionDigits);
   }
 
-  function changeMonth(direction: number) {
-    setPeriod((current) => new Date(current.getFullYear(), current.getMonth() + direction, 1));
+  function changePeriod(direction: -1 | 1) {
+    setPeriod((current) => shiftPeriod(current, direction));
   }
 
   return (
@@ -237,53 +242,58 @@ export default function HomeScreen() {
 
         <FlatList
           showsVerticalScrollIndicator={false}
-          data={
-            status === 'ready'
-              ? entries.filter((entry) =>
-                  accountsById.has(entry.accountSyncId),
-                )
-              : []
-          }
+          contentInsetAdjustmentBehavior="never"
+          data={entries.filter((entry) => accountsById.has(entry.accountSyncId))}
           keyExtractor={(entry) => entry.syncId}
-          onRefresh={refreshConversion}
-          refreshing={refreshingConversion}
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
           ListHeaderComponent={<View style={styles.header}>
             <View style={styles.period}>
-              <Pressable onPress={() => changeMonth(-1)} accessibilityRole="button" accessibilityLabel={translations.previousMonth} style={styles.arrow}>
+              <Pressable
+                onPress={() => changePeriod(-1)}
+                accessibilityRole="button"
+                accessibilityLabel={translations.periodPrevious}
+                accessibilityState={{ disabled: !previousAvailable }}
+                disabled={!previousAvailable}
+                style={[styles.arrow, { opacity: previousAvailable ? 1 : 0.3 }]}
+              >
                 <Text style={[styles.arrowText, { color: palette.text }]}>‹</Text>
               </Pressable>
-              <Text style={[styles.periodText, { color: palette.text }]}>{monthLabel}</Text>
-              <Pressable onPress={() => changeMonth(1)} accessibilityRole="button" accessibilityLabel={translations.nextMonth} style={styles.arrow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${translations.periodTitle}: ${periodLabel}`}
+                onPress={() => setPeriodVisible(true)}
+                style={({ pressed }) => [
+                  styles.periodButton,
+                  { backgroundColor: palette.card, borderColor: palette.line, opacity: pressed ? 0.75 : 1 },
+                ]}
+              >
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.periodText, { color: palette.text }]}>
+                  {periodLabel}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => changePeriod(1)}
+                accessibilityRole="button"
+                accessibilityLabel={translations.periodNext}
+                accessibilityState={{ disabled: !nextAvailable }}
+                disabled={!nextAvailable}
+                style={[styles.arrow, { opacity: nextAvailable ? 1 : 0.3 }]}
+              >
                 <Text style={[styles.arrowText, { color: palette.text }]}>›</Text>
               </Pressable>
             </View>
-            <View style={styles.chartPanel}>
-              {status === 'ready' && conversionIncomplete ? (
-                <Text
-                  style={[
-                    styles.empty,
-                    { color: palette.muted },
-                  ]}
-                >
-                  {translations.conversionUnavailable}
-                </Text>
-              ) : (
-                <>
-                  <CategoryChart
-                    segments={status === 'ready' ? segments : []}
-                    label={
-                      type === 'EXPENSE'
-                        ? translations.totalExpenses
-                        : translations.totalIncome
-                    }
-                    currencyCode={chartCurrencyCode}
-                    textColor={palette.text}
-                    mutedColor={palette.muted}
-                    trackColor={palette.line}
-                  />
-                </>
-              )}
+            <View style={[styles.chartPanel, { height: chartSize }]}>
+              <CategoryChart
+                size={chartSize}
+                available={status === 'ready' && !conversionIncomplete}
+                loading={status === 'loading'}
+                segments={segments}
+                label={type === 'EXPENSE' ? translations.totalExpenses : translations.totalIncome}
+                currencyCode={chartCurrencyCode}
+                textColor={palette.text}
+                mutedColor={palette.muted}
+                trackColor={palette.line}
+              />
 
               <Pressable
                 accessibilityRole="button"
@@ -324,13 +334,7 @@ export default function HomeScreen() {
               palette={palette} />
           </View>}
           ListEmptyComponent={
-            status === 'loading' ? (
-              <ActivityIndicator
-                color={palette.text}
-                accessibilityLabel={translations.loading}
-                style={{ paddingVertical: 28 }}
-              />
-            ) : (
+            status === 'loading' ? undefined : (
               <Text
                 style={[
                   styles.empty,
@@ -339,7 +343,7 @@ export default function HomeScreen() {
               >
                 {status === 'error'
                   ? translations.loadEntriesError
-                  : translations.noEntries}
+                  : translations.noEntriesInPeriod}
               </Text>
             )
           }
@@ -368,6 +372,9 @@ export default function HomeScreen() {
                   translations.openEntry(item.title)
                 }
                 onPress={() => {
+                  if (status !== 'ready') {
+                    return;
+                  }
                   setEditingEntry(item);
                   setCreateVisible(true);
                 }}
@@ -376,6 +383,17 @@ export default function HomeScreen() {
           }
         } />
       </SafeAreaView>
+
+      <PeriodSelector
+        visible={periodVisible}
+        value={period}
+        type={type}
+        onApply={(nextPeriod) => {
+          setPeriod(nextPeriod);
+          setPeriodVisible(false);
+        }}
+        onCancel={() => setPeriodVisible(false)}
+      />
 
       <Modal
         visible={createVisible}
@@ -419,13 +437,39 @@ const styles = StyleSheet.create({
   chartPanel: {
     alignItems: 'center',
     position: 'relative',
-    paddingBottom: 2
+    marginTop: 4,
+    marginBottom: 0
   },
-  addButton: { position: 'absolute', right: 0, bottom: 8, width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  addButton: {
+    position: 'absolute',
+    right: 0,
+    top: '89%',
+    transform: [{ translateY: -24 }],
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   addText: { fontSize: 30, lineHeight: 36 },
   header: { paddingBottom: 12 },
   period: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 0 },
-  periodText: { fontSize: 16, fontWeight: '600', textTransform: 'capitalize' },
+  periodButton: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  periodText: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   arrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   arrowText: { fontSize: 32 },
   

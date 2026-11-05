@@ -1,4 +1,5 @@
 import { useNetworkState } from 'expo-network';
+import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
@@ -10,7 +11,7 @@ import type { CachedHistoricalRate } from '@/models/historical-exchange-rate';
 import { getExchangeRateSnapshot } from '@/repositories/exchange-rate-repository';
 import { getHistoricalRates } from '@/repositories/historical-exchange-rate-repository';
 import { calculateEntryTotals } from '@/services/entry-summary-service';
-import { refreshExchangeRates } from '@/services/exchange-rate-service';
+import { ensureDailyExchangeRates } from '@/services/exchange-rate-service';
 import {
     getHistoricalRequests,
     refreshHistoricalRates,
@@ -30,7 +31,6 @@ export function useEntryConversion({
   const network = useNetworkState();
   const online = network.isConnected === true && network.isInternetReachable !== false;
   const [appState, setAppState] = useState(AppState.currentState);
-  const [refreshToken, setRefreshToken] = useState(0);
   const [current, setCurrent] = useState<ExchangeRateSnapshot | null>(null);
   const [historical, setHistorical] = useState<CachedHistoricalRate[]>([]);
   const [refreshingCurrent, setRefreshingCurrent] = useState(false);
@@ -41,13 +41,12 @@ export function useEntryConversion({
     return () => subscription.remove();
   }, []);
 
-  const refresh = useCallback(() => setRefreshToken((token) => token + 1), []);
   const requests = useMemo(
     () => getHistoricalRequests(entries, accounts, primaryCurrency),
     [entries, accounts, primaryCurrency],
   );
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let active = true;
     async function loadCurrent() {
       setRefreshingCurrent(true);
@@ -57,7 +56,7 @@ export function useEntryConversion({
           setCurrent(cached);
         }
         if (active && online && appState === 'active') {
-          const updated = await refreshExchangeRates(database);
+          const updated = await ensureDailyExchangeRates(database);
           if (active && updated) {
             setCurrent(updated);
           }
@@ -72,7 +71,7 @@ export function useEntryConversion({
     }
     void loadCurrent();
     return () => { active = false; };
-  }, [database, online, appState, refreshToken]);
+  }, [database, online, appState]));
 
   useEffect(() => {
     let active = true;
@@ -102,7 +101,7 @@ export function useEntryConversion({
     }
     void loadHistory();
     return () => { active = false; };
-  }, [database, requests, enabled, online, appState, refreshToken]);
+  }, [database, requests, enabled, online, appState]);
 
   const totals = useMemo(
     () => calculateEntryTotals(entries, accounts, primaryCurrency, historical, current),
@@ -110,7 +109,6 @@ export function useEntryConversion({
   );
   return {
     ...totals,
-    refresh,
-    refreshing: refreshingCurrent || refreshingHistory,
+    loading: refreshingCurrent || refreshingHistory,
   };
 }

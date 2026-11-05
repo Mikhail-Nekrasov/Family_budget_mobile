@@ -18,8 +18,8 @@ export type CreateEntryInput = {
 
 export type EntryQuery = {
   type: EntryType;
-  from: Date;
-  to: Date;
+  from?: Date;
+  to?: Date;
   accountSyncIds?: readonly string[];
   categorySyncIds?: readonly string[];
 };
@@ -73,24 +73,22 @@ export async function getEntries(
 ): Promise<Entry[]> {
   validateType(query.type);
 
-  const from = formatLocalDateTime(query.from);
-  const to = formatLocalDateTime(query.to);
+  const conditions = ['type = ?'];
+  const parameters: string[] = [query.type];
 
-  if (from >= to) {
+  const from = query.from === undefined ? undefined : formatLocalDateTime(query.from);
+  const to = query.to === undefined ? undefined : formatLocalDateTime(query.to);
+  if (from !== undefined && to !== undefined && from >= to) {
     throw new Error('Entry period must have a positive duration');
   }
-
-  const conditions = [
-    'type = ?',
-    'date_time >= ?',
-    'date_time < ?',
-  ];
-
-  const parameters: string[] = [
-    query.type,
-    from,
-    to,
-  ];
+  if (from !== undefined) {
+    conditions.push('date_time >= ?');
+    parameters.push(from);
+  }
+  if (to !== undefined) {
+    conditions.push('date_time < ?');
+    parameters.push(to);
+  }
 
   if (query.accountSyncIds && query.accountSyncIds.length > 0) {
     const placeholders = query.accountSyncIds

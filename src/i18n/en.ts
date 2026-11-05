@@ -63,6 +63,23 @@ export const en = {
   ratesLoadError: 'Could not refresh rates · saved rates are shown where available',
   ratesMissing: 'Some rates are missing · connect to the internet and refresh',
 
+  periodTitle: "Period",
+  periodMonth: "Month",
+  periodYear: "Year",
+  periodAllTime: "All time",
+  periodCustom: "Custom range",
+  periodFrom: "From",
+  periodThrough: "To",
+  periodShow: "Show",
+  periodExpensesFor: "Show expenses for",
+  periodIncomeFor: "Show income for",
+  periodInvalidRange: "Choose an end date on or after the start date",
+  periodPrevious: "Previous period",
+  periodNext: "Next period",
+  noEntriesInPeriod: "No entries for this period",
+
+  periodFutureNotAllowed: "Choose a date no later than today",
+
   home: 'Home',
 
   expenses: 'Expenses',

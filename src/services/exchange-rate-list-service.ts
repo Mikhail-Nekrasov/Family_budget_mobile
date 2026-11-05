@@ -1,18 +1,17 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { fetchExchangeRateSnapshot } from '@/api/api-exchange-rate';
 import { fetchHistoricalRates } from '@/api/api-historical-exchange-rate';
 import { CURRENCY_CODES } from '@/constants/currencies';
 import type { RateListData, RateListRow } from '@/models/exchange-rate-list';
 import { isRateDate } from '@/models/historical-exchange-rate';
 import {
-    getExchangeRateSnapshot,
-    saveExchangeRateSnapshot,
+  getExchangeRateSnapshot,
 } from '@/repositories/exchange-rate-repository';
 import {
-    getHistoricalRates,
-    saveHistoricalRates,
+  getHistoricalRates,
+  saveHistoricalRates,
 } from '@/repositories/historical-exchange-rate-repository';
+import { downloadExchangeRates, ensureDailyExchangeRates } from '@/services/exchange-rate-service';
 import { needsHistoricalRefresh } from '@/services/historical-exchange-rate-service';
 
 const HISTORY_CURRENCIES = CURRENCY_CODES.filter((code) => code !== 'EUR');
@@ -47,8 +46,11 @@ export async function updateRateList(
   force = false,
 ): Promise<RateListData> {
   if (date === null) {
-    const snapshot = await fetchExchangeRateSnapshot();
-    await saveExchangeRateSnapshot(database, snapshot);
+    if (force) {
+      await downloadExchangeRates(database);
+    } else {
+      await ensureDailyExchangeRates(database);
+    }
   } else {
     if (!isRateDate(date)) {
       throw new Error('Invalid exchange rate date');
