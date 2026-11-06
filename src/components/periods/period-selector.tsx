@@ -1,5 +1,5 @@
 import ExpoDateTimePicker from '@expo/ui/community/datetime-picker';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
@@ -37,13 +37,14 @@ function rangeFromPeriod(period: EntryPeriod): Extract<EntryPeriod, { kind: 'ran
   if (period.kind === 'range') {
     return period;
   }
-  const bounds = periodBounds(period);
-  const from = bounds.from ?? new Date();
-  const through = bounds.to ? new Date(bounds.to.getTime()) : new Date(from.getTime());
-  if (bounds.to) {
-    through.setDate(through.getDate() - 1);
-  }
-  return { kind: 'range', from: localDateKey(from), through: localDateKey(through) };
+  const today = new Date();
+  const from = new Date(today.getTime());
+  from.setMonth(0, 1);
+  return {
+    kind: 'range',
+    from: localDateKey(from),
+    through: localDateKey(today),
+  };
 }
 
 export function PeriodSelector(props: Props) {
@@ -78,17 +79,21 @@ function PeriodForm({ value, type, onApply, onCancel }: Props) {
   const palette = dark
     ? { card: '#1C2432', text: '#F0F3FA', muted: '#A8B3C5', border: '#333F52', accent: '#A0B8FF', error: '#FF8A80' }
     : { card: '#FFFFFF', text: '#192238', muted: '#6C7890', border: '#E0E5EE', accent: '#365BBC', error: '#C62828' };
-  const today = new Date();
-  const years: WheelOption[] = Array.from(
-    { length: today.getFullYear() - MIN_PERIOD_YEAR + 1 },
+  const [today] = useState(() => new Date());
+  const currentYear = today.getFullYear();
+  const years = useMemo<WheelOption[]>(() => Array.from(
+    { length: currentYear - MIN_PERIOD_YEAR + 1 },
     (_, index) => ({ value: MIN_PERIOD_YEAR + index, label: String(MIN_PERIOD_YEAR + index) }),
-  );
-  const lastMonth = year === today.getFullYear() ? today.getMonth() : 11;
+  ), [currentYear]);
+  const lastMonth = year === currentYear ? today.getMonth() : 11;
   const selectedMonth = Math.min(month, lastMonth);
-  const months: WheelOption[] = Array.from({ length: lastMonth + 1 }, (_, index) => ({
-    value: index,
-    label: new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(2000, index, 15)),
-  }));
+  const months = useMemo<WheelOption[]>(() => {
+    const formatter = new Intl.DateTimeFormat(locale, { month: 'long' });
+    return Array.from({ length: lastMonth + 1 }, (_, index) => ({
+      value: index,
+      label: formatter.format(new Date(2000, index, 15)),
+    }));
+  }, [locale, lastMonth]);
   const modes = [
     { value: 'month', label: translations.periodMonth },
     { value: 'year', label: translations.periodYear },
@@ -165,10 +170,22 @@ function PeriodForm({ value, type, onApply, onCancel }: Props) {
         <Text style={[styles.title, { color: palette.text }]}>{title}</Text>
         {stage === 'month' || stage === 'year' ? (
           <View style={styles.wheels}>
-            <PeriodWheel label={translations.periodYear} options={years} value={year} onChange={setYear} />
             {stage === 'month' && (
-              <PeriodWheel key={months.length} label={translations.periodMonth} options={months} value={selectedMonth} onChange={setMonth} />
+              <PeriodWheel
+                key={months.length}
+                label={translations.periodMonth}
+                options={months}
+                value={selectedMonth}
+                onChange={setMonth}
+                cyclic
+              />
             )}
+            <PeriodWheel
+              label={translations.periodYear}
+              options={years}
+              value={year}
+              onChange={setYear}
+            />
           </View>
         ) : stage === 'from' || stage === 'through' ? (
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

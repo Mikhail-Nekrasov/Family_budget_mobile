@@ -1,7 +1,7 @@
 import type { EntryPeriod } from '@/models/entry-period';
 
-export const MIN_PERIOD_YEAR = 1;
-export const MAX_PERIOD_YEAR = 9998;
+export const MIN_PERIOD_YEAR = 1900;
+export const MAX_PERIOD_YEAR = 2100;
 
 function validateYear(year: number): void {
   if (!Number.isInteger(year) || year < MIN_PERIOD_YEAR || year > MAX_PERIOD_YEAR) {
