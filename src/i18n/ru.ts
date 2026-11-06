@@ -229,6 +229,8 @@ export const ru: Messages = {
 
   selectAccount: 'Выберите счёт',
 
+  entryDateInvalid: (year: number) =>
+    `Выберите дату с 1 января ${year} года по сегодня`,
   entryDate: 'Дата',
   entryTime: 'Время',
 

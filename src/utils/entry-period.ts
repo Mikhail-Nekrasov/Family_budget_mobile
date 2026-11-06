@@ -1,4 +1,5 @@
 import type { EntryPeriod } from '@/models/entry-period';
+import { toCalendarPickerDate } from '@/utils/calendar-date';
 
 export const MIN_PERIOD_YEAR = 1900;
 export const MAX_PERIOD_YEAR = 2100;
@@ -14,6 +15,48 @@ function localDay(year: number, month: number, day: number): Date {
   result.setFullYear(year, month, day);
   result.setHours(0, 0, 0, 0);
   return result;
+}
+
+export function entryDateLimits(now = new Date()): {
+  minimumDate: Date;
+  maximumDate: Date;
+} {
+  const minimumDate = localDay(MIN_PERIOD_YEAR, 0, 1);
+
+  const maximumDate = localDay(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
+  maximumDate.setMilliseconds(-1);
+
+  const technicalMaximum = localDay(
+    MAX_PERIOD_YEAR + 1,
+    0,
+    1,
+  );
+  technicalMaximum.setMilliseconds(-1);
+
+  return {
+    minimumDate,
+    maximumDate:
+      maximumDate < technicalMaximum
+        ? maximumDate
+        : technicalMaximum,
+  };
+}
+
+export function isEntryDateAllowed(
+  value: Date,
+  now = new Date(),
+): boolean {
+  if (!Number.isFinite(value.getTime())) {
+    return false;
+  }
+
+  const { minimumDate, maximumDate } = entryDateLimits(now);
+
+  return value >= minimumDate && value <= maximumDate;
 }
 
 export function localDateKey(date: Date): string {
@@ -92,18 +135,56 @@ export function shiftPeriod(period: EntryPeriod, direction: -1 | 1, now = new Da
     : period;
 }
 
-export function formatEntryPeriod(period: EntryPeriod, locale: string, allTimeLabel: string): string {
+export function formatEntryPeriod(
+  period: EntryPeriod,
+  locale: string,
+  allTimeLabel: string,
+): string {
   if (period.kind === 'all') {
     return allTimeLabel;
   }
+
   if (period.kind === 'range') {
     const formatter = new Intl.DateTimeFormat(locale, {
-      day: '2-digit', month: '2-digit', year: 'numeric',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'UTC',
     });
-    return `${formatter.format(parsePeriodDate(period.from))} – ${formatter.format(parsePeriodDate(period.through))}`;
+
+    const from = toCalendarPickerDate(
+      parsePeriodDate(period.from),
+      true,
+    );
+
+    const through = toCalendarPickerDate(
+      parsePeriodDate(period.through),
+      true,
+    );
+
+    return `${formatter.format(from)} – ${formatter.format(through)}`;
   }
-  return new Intl.DateTimeFormat(locale, period.kind === 'month'
-    ? { month: 'long', year: 'numeric' }
-    : { year: 'numeric' },
-  ).format(localDay(period.year, period.kind === 'month' ? period.month : 0, 1));
+
+  const date = toCalendarPickerDate(
+    localDay(
+      period.year,
+      period.kind === 'month' ? period.month : 0,
+      1,
+    ),
+    true,
+  );
+
+  return new Intl.DateTimeFormat(
+    locale,
+    period.kind === 'month'
+      ? {
+          month: 'long',
+          year: 'numeric',
+          timeZone: 'UTC',
+        }
+      : {
+          year: 'numeric',
+          timeZone: 'UTC',
+        },
+  ).format(date);
 }

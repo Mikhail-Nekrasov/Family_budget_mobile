@@ -1,9 +1,9 @@
-import ExpoDateTimePicker from '@expo/ui/community/datetime-picker';
 import { useMemo, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
+import { AppCalendar } from '@/components/calendar/app-calendar';
 import { FieldError } from '@/components/field-error';
 import { PeriodWheel, type WheelOption } from '@/components/periods/period-wheel';
 import { ScreenBackground } from '@/components/screen-background';
@@ -11,12 +11,15 @@ import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import type { EntryPeriod } from '@/models/entry-period';
 import type { EntryType } from '@/models/entry-type';
+import { formatCalendarDate } from '@/utils/calendar-date';
 import {
   formatEntryPeriod,
+  isEntryDateAllowed,
   localDateKey,
+  MAX_PERIOD_YEAR,
   MIN_PERIOD_YEAR,
   parsePeriodDate,
-  periodBounds,
+  periodBounds
 } from '@/utils/entry-period';
 
 type Props = {
@@ -79,14 +82,26 @@ function PeriodForm({ value, type, onApply, onCancel }: Props) {
   const palette = dark
     ? { card: '#1C2432', text: '#F0F3FA', muted: '#A8B3C5', border: '#333F52', accent: '#A0B8FF', error: '#FF8A80' }
     : { card: '#FFFFFF', text: '#192238', muted: '#6C7890', border: '#E0E5EE', accent: '#365BBC', error: '#C62828' };
-  const [today] = useState(() => new Date());
-  const currentYear = today.getFullYear();
-  const years = useMemo<WheelOption[]>(() => Array.from(
-    { length: currentYear - MIN_PERIOD_YEAR + 1 },
-    (_, index) => ({ value: MIN_PERIOD_YEAR + index, label: String(MIN_PERIOD_YEAR + index) }),
-  ), [currentYear]);
-  const lastMonth = year === currentYear ? today.getMonth() : 11;
-  const selectedMonth = Math.min(month, lastMonth);
+const [today] = useState(() => new Date());
+
+const currentYear = Math.min(
+  MAX_PERIOD_YEAR,
+  today.getFullYear(),
+);
+
+const years = useMemo<WheelOption[]>(() => Array.from(
+  { length: currentYear - MIN_PERIOD_YEAR + 1 },
+  (_, index) => ({
+    value: MIN_PERIOD_YEAR + index,
+    label: String(MIN_PERIOD_YEAR + index),
+  }),
+), [currentYear]);
+
+const lastMonth = year === today.getFullYear()
+  ? today.getMonth()
+  : 11;
+
+const selectedMonth = Math.min(month, lastMonth);
   const months = useMemo<WheelOption[]>(() => {
     const formatter = new Intl.DateTimeFormat(locale, { month: 'long' });
     return Array.from({ length: lastMonth + 1 }, (_, index) => ({
@@ -118,18 +133,37 @@ function PeriodForm({ value, type, onApply, onCancel }: Props) {
 
   function selectPicker() {
     if (stage === 'month') {
-      setDraft({ kind: 'month', year, month: selectedMonth });
+      setDraft({
+        kind: 'month',
+        year,
+        month: selectedMonth,
+      });
     } else if (stage === 'year') {
-      setDraft({ kind: 'year', year });
+      setDraft({
+        kind: 'year',
+        year,
+      });
     } else if (stage === 'from' || stage === 'through') {
-      try {
-        const key = localDateKey(calendarDate);
-        setDraft((current) => current.kind === 'range' ? { ...current, [stage]: key } : current);
-      } catch {
-        showFieldError('range', translations.periodInvalidRange);
+      if (!isEntryDateAllowed(calendarDate)) {
+        showFieldError(
+          'range',
+          translations.entryDateInvalid(MIN_PERIOD_YEAR),
+        );
         return;
       }
+
+      const key = localDateKey(calendarDate);
+
+      setDraft((current) =>
+        current.kind === 'range'
+          ? {
+              ...current,
+              [stage]: key,
+            }
+          : current,
+      );
     }
+
     clearError('range');
     setStage(null);
   }
@@ -159,9 +193,10 @@ function PeriodForm({ value, type, onApply, onCancel }: Props) {
           : translations.periodTitle;
 
   function formatDate(date: string): string {
-    return new Intl.DateTimeFormat(locale, {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-    }).format(parsePeriodDate(date));
+    return formatCalendarDate(
+      parsePeriodDate(date),
+      locale,
+    );
   }
 
   return (
@@ -188,21 +223,14 @@ function PeriodForm({ value, type, onApply, onCancel }: Props) {
             />
           </View>
         ) : stage === 'from' || stage === 'through' ? (
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            <View style={[styles.pickerPanel, { backgroundColor: palette.card }]}>
-              <ExpoDateTimePicker
-                value={calendarDate}
-                maximumDate={today}
-                mode="date"
-                presentation="inline"
-                display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                locale={locale.replace(/-/g, '_')}
-                themeVariant={dark ? 'dark' : 'light'}
-                accentColor={palette.accent}
-                onValueChange={(_, selectedDate) => setCalendarDate(selectedDate)}
-              />
-            </View>
-            <AppButton title={translations.today} nativeGlass onPress={() => setCalendarDate(new Date())} />
+          <ScrollView
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
+            <AppCalendar
+              value={calendarDate}
+              onChange={setCalendarDate}
+            />
           </ScrollView>
         ) : (
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

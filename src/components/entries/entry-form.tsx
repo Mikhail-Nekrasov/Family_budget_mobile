@@ -9,8 +9,8 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
-  useColorScheme
+  useColorScheme,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -39,9 +39,13 @@ import {
   getRecentEntryUsage,
   updateEntry,
 } from '@/repositories/entry-repository';
-import { parseAmountToMinor } from '@/utils/money';
 import { getCategoryName } from '@/utils/category-name';
 import { getCategoryPreviewIds } from '@/utils/category-preview';
+import {
+  isEntryDateAllowed,
+  MIN_PERIOD_YEAR,
+} from '@/utils/entry-period';
+import { parseAmountToMinor } from '@/utils/money';
 import { rankByRecentUsage } from '@/utils/rank-by-recent-usage';
 
 
@@ -74,7 +78,7 @@ export function EntryForm({
     clearError,
     showFieldError,
     showFormError,
-  } = useFormErrors<'title' | 'amount' | 'category'>();
+  } = useFormErrors<'title' | 'amount' | 'category' | 'date'>();
 
   const [description, setDescription] = useState(entry?.description ?? '');
   const [dateTime, setDateTime] = useState(() => {
@@ -308,6 +312,14 @@ export function EntryForm({
       return;
     }
 
+    if (!isEntryDateAllowed(dateTime)) {
+      showFieldError(
+        'date',
+        translations.entryDateInvalid(MIN_PERIOD_YEAR),
+      );
+      return;
+    }
+
     savingRef.current = true;
     setSaving(true);
 
@@ -527,9 +539,14 @@ export function EntryForm({
 
                 <EntryDateTime
                   value={dateTime}
-                  onChange={setDateTime}
+                  onChange={(value) => {
+                    setDateTime(value);
+                    clearError('date');
+                  }}
                   disabled={saving}
                 />
+
+                <FieldError message={errors.date} />
 
                 <Text style={[styles.label, { color: palette.text }]}>
                   {translations.description}

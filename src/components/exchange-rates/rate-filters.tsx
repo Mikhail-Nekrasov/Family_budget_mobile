@@ -1,22 +1,22 @@
-import ExpoDateTimePicker from '@expo/ui/community/datetime-picker';
 import { useState } from 'react';
 import {
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-    useColorScheme,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
+import { AppCalendar } from '@/components/calendar/app-calendar';
 import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
 import { CURRENCY_CODES, CURRENCY_SYMBOLS, type CurrencyCode } from '@/constants/currencies';
 import { useLanguage } from '@/hooks/use-language';
+import { formatCalendarDate } from '@/utils/calendar-date';
 
 type Props = {
   currency: CurrencyCode | null;
@@ -37,9 +37,7 @@ export function RateFilters({
   const palette = dark
     ? { background: '#111722', card: '#1C2432', text: '#F0F3FA', border: '#333F52', accent: '#A0B8FF' }
     : { background: '#F5F6F9', card: '#FFFFFF', text: '#192238', border: '#E0E5EE', accent: '#365BBC' };
-  const dateLabel = new Intl.DateTimeFormat(locale, {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  }).format(date);
+  const dateLabel = formatCalendarDate(date, locale);
 
   return (
     <>
@@ -107,21 +105,10 @@ export function RateFilters({
                       </Text>
                     </Pressable>
                   )) : (
-                    <>
-                      <View style={[styles.pickerPanel, { backgroundColor: palette.card }]}>
-                        <ExpoDateTimePicker
-                          value={draft}
-                          mode="date"
-                          presentation="inline"
-                          display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                          maximumDate={new Date()}
-                          locale={locale.replace(/-/g, '_')}
-                          accentColor={palette.accent}
-                          onValueChange={(_, selectedDate) => setDraft(selectedDate)}
-                        />
-                      </View>
-                      <AppButton title={translations.today} nativeGlass onPress={() => setDraft(new Date())} />
-                    </>
+                    <AppCalendar
+                      value={draft}
+                      onChange={setDraft}
+                    />
                   )}
                 </ScrollView>
                 <View style={styles.actions}>

@@ -5,6 +5,7 @@ import type { Entry } from '@/models/entry';
 import type { EntryType } from '@/models/entry-type';
 import { getAccountBySyncId } from '@/repositories/account-repository';
 import { getCategoryBySyncId } from '@/repositories/category-repository';
+import { isEntryDateAllowed } from '@/utils/entry-period';
 
 export type CreateEntryInput = {
   title: string;
@@ -154,6 +155,10 @@ export async function createEntry(
     throw new Error(
       'Entry amount must be a positive safe integer',
     );
+  }
+
+  if (!isEntryDateAllowed(input.dateTime)) {
+    throw new Error('Entry date is outside the allowed range');
   }
 
   const entry: Entry = {
@@ -316,6 +321,10 @@ export async function updateEntry(
 
   if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor <= 0) {
     throw new Error('Invalid entry amount');
+  }
+
+  if (!isEntryDateAllowed(input.dateTime)) {
+    throw new Error('Entry date is outside the allowed range');
   }
 
   const dateTime = formatLocalDateTime(input.dateTime);

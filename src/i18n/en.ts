@@ -227,6 +227,8 @@ export const en = {
 
   selectAccount: 'Select an account',
 
+  entryDateInvalid: (year: number) =>
+    `Choose a date from 1 January ${year} through today`,
   entryDate: 'Date',
   entryTime: 'Time',
 

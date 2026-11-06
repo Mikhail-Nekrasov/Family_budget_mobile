@@ -229,6 +229,8 @@ export const fi: Messages = {
 
   selectAccount: 'Valitse tili',
 
+  entryDateInvalid: (year: number) =>
+    `Valitse päivämäärä väliltä 1.1.${year} – tänään`,
   entryDate: 'Päivä',
   entryTime: 'Aika',
 

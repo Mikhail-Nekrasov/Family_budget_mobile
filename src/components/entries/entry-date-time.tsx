@@ -17,8 +17,10 @@ import {
 } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
+import { AppCalendar } from '@/components/calendar/app-calendar';
 import { ScreenBackground } from '@/components/screen-background';
 import { useLanguage } from '@/hooks/use-language';
+import { formatCalendarDate } from '@/utils/calendar-date';
 
 type EntryDateTimeProps = {
   value: Date;
@@ -91,22 +93,6 @@ export function EntryDateTime({
     });
   }
 
-  function selectToday() {
-    const today = new Date();
-
-    setDraft((current) => {
-      const next = new Date(current.getTime());
-
-      next.setFullYear(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate(),
-      );
-
-      return next;
-    });
-  }
-
   function selectNow() {
     const now = new Date();
 
@@ -137,19 +123,14 @@ export function EntryDateTime({
     date: Date,
     pickerMode: PickerMode,
   ): string {
-    return new Intl.DateTimeFormat(
-      locale,
-      pickerMode === 'date'
-        ? {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-          }
-        : {
-            hour: '2-digit',
-            minute: '2-digit',
-          },
-    ).format(date);
+    if (pickerMode === 'date') {
+      return formatCalendarDate(date, locale);
+    }
+
+    return new Intl.DateTimeFormat(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
   }
 
   return (
@@ -237,44 +218,45 @@ export function EntryDateTime({
                       : translations.entryTime}
                   </Text>
 
-                  <View
-                    style={[
-                      styles.pickerPanel,
-                      { backgroundColor: palette.card },
-                    ]}
-                  >
-                    <ExpoDateTimePicker
+                  {mode === 'date' ? (
+                    <AppCalendar
                       value={draft}
-                      mode={mode}
-                      presentation="inline"
-                      display={
-                        Platform.OS === 'ios'
-                          ? mode === 'date'
-                            ? 'inline'
-                            : 'spinner'
-                          : 'default'
-                      }
-                      locale={locale.replace(/-/g, '_')}
-                      accentColor={palette.accent}
-                      onValueChange={(_, selectedDate) => {
-                        updateDraft(selectedDate);
-                      }}
+                      disabled={disabled}
+                      onChange={updateDraft}
                     />
-                  </View>
+                  ) : (
+                    <>
+                      <View
+                        style={[
+                          styles.pickerPanel,
+                          { backgroundColor: palette.card },
+                        ]}
+                      >
+                        <ExpoDateTimePicker
+                          value={draft}
+                          mode="time"
+                          presentation="inline"
+                          display={
+                            Platform.OS === 'ios'
+                              ? 'spinner'
+                              : 'default'
+                          }
+                          locale={locale.replace(/-/g, '_')}
+                          themeVariant={dark ? 'dark' : 'light'}
+                          accentColor={palette.accent}
+                          onValueChange={(_, selectedDate) =>
+                            updateDraft(selectedDate)
+                          }
+                        />
+                      </View>
 
-                  <AppButton
-                    title={
-                      mode === 'date'
-                        ? translations.today
-                        : translations.now
-                    }
-                    nativeGlass
-                    onPress={
-                      mode === 'date'
-                        ? selectToday
-                        : selectNow
-                    }
-                  />
+                      <AppButton
+                        title={translations.now}
+                        nativeGlass
+                        onPress={selectNow}
+                      />
+                    </>
+                  )}
                 </ScrollView>
 
                 <View style={styles.actions}>
