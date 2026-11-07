@@ -16,11 +16,13 @@ import {
 
 import { AppButton } from '@/components/app-button';
 import { ScreenBackground } from '@/components/screen-background';
+import { iconForeground } from '@/constants/icon-colors';
 import { useLanguage } from '@/hooks/use-language';
 
 export type IconSelectOption = {
   value: string;
   label: string;
+  backgroundColor?: string | null;
 };
 
 type CompactIconSelectProps = {
@@ -40,6 +42,10 @@ type CompactIconSelectProps = {
     onCreated: (value: string) => void,
     onCancel: () => void,
   ) => ReactNode;
+  getIconBackgroundColor?: (
+    value: string,
+  ) => string | null | undefined;
+  colorSelectedOnly?: boolean;
 };
 
 export function CompactIconSelect({
@@ -50,6 +56,8 @@ export function CompactIconSelect({
   renderIcon,
   disabled = false,
   showLabels = false,
+  getIconBackgroundColor,
+  colorSelectedOnly = false,
   previewValues,
   renderCreateForm,
 }: CompactIconSelectProps) {
@@ -142,7 +150,17 @@ export function CompactIconSelect({
     const selected = option.value === (
       inModal ? pendingValue : value
     );
-    const color = selected ? palette.accent : palette.text;
+    const background = !colorSelectedOnly || selected
+      ? (option.backgroundColor !== undefined
+        ? option.backgroundColor
+        : getIconBackgroundColor?.(option.value))
+      : null;
+
+    const color = background
+      ? iconForeground(background)
+      : selected
+        ? palette.accent
+        : palette.text;
 
     return (
       <Pressable
@@ -176,11 +194,32 @@ export function CompactIconSelect({
               borderColor: selected
                 ? palette.accent
                 : palette.border,
-              backgroundColor: palette.card,
+              backgroundColor: background ?? palette.card,
             },
           ]}
         >
           {renderIcon(option.value, color, 28)}
+          {selected && (colorSelectedOnly || background) && (
+            <View
+              style={{
+                position: 'absolute',
+                right: -3,
+                bottom: -3,
+                width: 20,
+                height: 20,
+                borderRadius: 10,
+                backgroundColor: palette.accent,
+                borderWidth: 2,
+                borderColor: palette.background,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={{ color: iconForeground(palette.accent), fontSize: 11 }}>
+                ✓
+              </Text>
+            </View>
+          )}
         </View>
 
         {showLabels && (
@@ -188,7 +227,9 @@ export function CompactIconSelect({
             numberOfLines={2}
             style={[
               styles.optionLabel,
-              { color },
+              {
+                color: selected ? palette.accent : palette.text,
+              },
             ]}
           >
             {option.label}

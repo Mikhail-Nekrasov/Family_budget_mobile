@@ -11,5 +11,6 @@ export type Category = {
   nameOverrides: Partial<Record<Language, string>>;
   sortOrder: number;
   iconKey: string;
+  iconColor: string | null;
   type: EntryType;
 };

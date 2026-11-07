@@ -1,7 +1,7 @@
 export const CATEGORY_ICON_PATHS = {
-  category:
-    'M3 3H9V9H3Z M15 3H21V9H15Z ' +
-    'M3 15H9V21H3Z M15 15H21V21H15Z',
+  otherExpense:
+    'M12 2A10 10 0 1 1 12 22A10 10 0 1 1 12 2Z ' +
+    'M9 9A3 3 0 1 1 13.5 11.6Q12 12.5 12 14 M12 17H12.01',
 
   groceries:
     'M2 3H5L8 16H19L22 7H6 ' +
@@ -54,9 +54,48 @@ export const CATEGORY_ICON_PATHS = {
   pets: 'M8 13Q12 8 16 13L20 18Q21 23 15 21Q12 20 9 21Q3 23 4 18Z M2 9A2 3 0 1 0 6 9A2 3 0 1 0 2 9 M7 5A2 3 0 1 0 11 5A2 3 0 1 0 7 5 M13 5A2 3 0 1 0 17 5A2 3 0 1 0 13 5 M18 9A2 3 0 1 0 22 9A2 3 0 1 0 18 9',
   repairs: 'M14 3Q21 0 22 7L17 6L14 9L15 13Q11 16 8 13L3 21L1 19L8 12Q5 8 9 4L9 8L12 9L15 6Z',
   charity: 'M12 9Q4 1 3 8Q2 12 12 18Q22 12 21 8Q20 1 12 9Z M2 20H8L12 22L22 18',
-  interest: 'M8 4H18Q23 7 18 10H8Q3 7 8 4Z M6 7V17Q12 23 20 17V7 M6 12Q12 17 20 12',
-  business: 'M3 10H21V22H3Z M2 10L5 2H19L22 10 M7 10V6 M12 10V6 M17 10V6 M9 22V15H15V22',
+  interest:
+    'M12 2A10 10 0 1 1 12 22A10 10 0 1 1 12 2Z M8 16L16 8 ' +
+    'M9.5 8.5A1.5 1.5 0 1 1 6.5 8.5A1.5 1.5 0 1 1 9.5 8.5Z ' +
+    'M17.5 15.5A1.5 1.5 0 1 1 14.5 15.5A1.5 1.5 0 1 1 17.5 15.5Z',
+
+  rentalIncome:
+    'M2 10L10.5 3L19 10 M4 9V20H12 M9 20V14H12 ' +
+    'M17.5 12A4.5 4.5 0 1 1 17.5 21A4.5 4.5 0 1 1 17.5 12Z ' +
+    'M17.5 14.5V18.5',
+
+  giftsIncome:
+    'M3 10L20.5 6L21.5 10L4 14Z M5 14V21H19V11 M12 12.2V21 ' +
+    'M12 8L8.5 8.8Q4.5 9.7 5 6Q6 2 12 8Q14 1.5 17 3.5Q20 6.2 15.5 7.2Z',
+
+  business:
+    'M4 5H20V16H4Z M4 16L1.5 20H22.5L20 16 M10 18H14',
+
+  otherIncome:
+    'M10 2A8.5 8.5 0 0 1 18.25 12.5 M10 2A8.5 8.5 0 1 0 10 19 ' +
+    'M7.5 8A2.5 2.5 0 1 1 11.25 10.2Q10 11 10 12.5 M10 15H10.01 ' +
+    'M12.5 14.5H22V19.5H12.5Z M14 22H22 M17.25 17H17.26',
   benefits: 'M2 15H6L9 12H15Q19 12 18 15H11 M6 15L10 21H16L23 14 M2 12V21H6 M10 3L12 5L14 3Q18 2 17 6L12 10L7 6Q6 2 10 3Z',
 };
 
-export const CATEGORY_ICON_KEYS = Object.keys(CATEGORY_ICON_PATHS) as (keyof typeof CATEGORY_ICON_PATHS)[];
+export type CategoryIconKey = keyof typeof CATEGORY_ICON_PATHS;
+
+export const INCOME_CATEGORY_ICON_KEYS = [
+  'salary',
+  'interest',
+  'rentalIncome',
+  'giftsIncome',
+  'business',
+  'benefits',
+  'otherIncome',
+] as const satisfies readonly CategoryIconKey[];
+
+const incomeIconKeys = new Set<CategoryIconKey>(INCOME_CATEGORY_ICON_KEYS);
+
+export const EXPENSE_CATEGORY_ICON_KEYS = (
+  Object.keys(CATEGORY_ICON_PATHS) as CategoryIconKey[]
+).filter((key) => !incomeIconKeys.has(key));
+
+export function getOtherCategoryIconKey(type: 'EXPENSE' | 'INCOME') {
+  return type === 'INCOME' ? 'otherIncome' : 'otherExpense';
+}

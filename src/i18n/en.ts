@@ -64,6 +64,8 @@ export const en = {
   ratesMissing: 'Some rates are missing · connect to the internet and refresh',
 
   periodTitle: "Period",
+  periodDay: 'Day',
+  periodWeek: 'Week',
   periodMonth: "Month",
   periodYear: "Year",
   periodAllTime: "All time",
@@ -182,7 +184,10 @@ export const en = {
 
   categoryIcon: 'Category icon',
   categoryIcons: {
-    category: 'General',
+    otherExpense: 'Other',
+    otherIncome: 'Other',
+    rentalIncome: 'Rental income',
+    giftsIncome: 'Gifts',
     groceries: 'Groceries',
     housing: 'Housing',
     transport: 'Transport',
@@ -254,6 +259,28 @@ export const en = {
     `Permanently delete "${title}"?`,
   
   currencyWholeAmountRequired: 'This currency does not allow decimal amounts',
+
+  iconColor: 'Icon background',
+  noIconColor: "No background color",
+  moreColors: 'More colors',
+
+  accountIcons: {
+    cash: 'Cash',
+    card: 'Card',
+    bank: 'Bank',
+    wallet: 'Wallet',
+    purse: 'Billfold',
+    piggyBank: 'Piggy bank',
+    safe: 'Safe',
+    coins: 'Coins',
+    business: 'Briefcase',
+    moneyBag: 'Interest savings',
+    investment: 'Investment growth',
+    diamond: 'Diamond',
+    gold: 'Gold bar',
+    mobileCard: 'Mobile card',
+    bitcoin: 'Bitcoin',
+  },
 };
 
 export type Messages = typeof en;

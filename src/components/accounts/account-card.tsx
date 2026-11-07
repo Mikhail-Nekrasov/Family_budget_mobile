@@ -8,7 +8,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import { AccountIcon } from '@/components/accounts/account-icon';
+import { IconBadge } from '@/components/icons/icon-badge';
 import type { Account } from '@/models/account';
 import { formatMoney } from '@/utils/format-money';
 
@@ -102,10 +102,11 @@ export function AccountCard({
       />
 
       <View style={styles.icon}>
-        <AccountIcon
+        <IconBadge
+          kind="account"
           iconKey={account.iconKey}
-          color={palette.text}
-          size={28}
+          color={account.iconColor}
+          size={40}
         />
       </View>
 

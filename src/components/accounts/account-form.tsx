@@ -17,9 +17,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountIcon } from '@/components/accounts/account-icon';
 import { AppButton } from '@/components/app-button';
+import { CompactIconSelect } from '@/components/compact-icon-select';
 import { FieldError } from '@/components/field-error';
+import { IconColorSelect } from '@/components/icons/icon-color-select';
 import { ScreenBackground } from '@/components/screen-background';
+import {
+  ACCOUNT_CURRENCY_SYMBOLS,
+  ACCOUNT_ICON_KEYS,
+} from '@/constants/account-icons';
 import { CURRENCY_CODES } from '@/constants/currencies';
+import { DEFAULT_ACCOUNT_ICON_COLOR } from '@/constants/icon-colors';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
@@ -71,6 +78,9 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
   const [iconKey, setIconKey] = useState(
     account?.iconKey ?? 'cash',
   );
+  const [iconColor, setIconColor] = useState(
+    account ? account.iconColor : DEFAULT_ACCOUNT_ICON_COLOR,
+  );
   const [saving, setSaving] = useState(false);
 
   const savingRef = useRef(false);
@@ -102,11 +112,6 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
       borderColor: palette.border,
     },
   ];
-
-  const iconOptions = [
-    { key: 'cash', label: translations.cashIcon },
-    { key: 'card', label: translations.cardIcon },
-  ] as const;
 
   const [canDelete, setCanDelete] = useState(false);
   const accountSyncId = account?.syncId;
@@ -185,6 +190,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
           name,
           description,
           iconKey,
+          iconColor,
         });
       } else {
         await createAccount(database, {
@@ -192,6 +198,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
           description,
           currencyCode,
           iconKey,
+          iconColor,
           openingBalanceMinor,
         });
       }
@@ -321,173 +328,180 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
               style={[inputStyle, styles.description]}
             />
 
-            {!account && (
-              <>
+            <View style={styles.balanceCurrencyRow}>
+              {!account && (
+                <View style={styles.balanceField}>
+                  <Text style={[styles.label, { color: palette.text }]}>
+                    {translations.openingBalance}
+                  </Text>
+
+                  <TextInput
+                    ref={openingBalanceRef}
+                    accessibilityLabel={translations.openingBalance}
+                    value={openingBalance}
+                    onChangeText={(text) => {
+                      setOpeningBalance(text);
+                      clearError('openingBalance');
+                    }}
+                    editable={!saving}
+                    keyboardType="numbers-and-punctuation"
+                    autoCorrect={false}
+                    style={[
+                      inputStyle,
+                      errors.openingBalance && {
+                        borderColor: palette.error,
+                      },
+                    ]}
+                  />
+
+                  <FieldError message={errors.openingBalance} />
+                </View>
+              )}
+              <View style={styles.currencyColumn}>
                 <Text style={[styles.label, { color: palette.text }]}>
-                  {translations.openingBalance}
+                  {translations.currency}
                 </Text>
 
-                <TextInput
-                  ref={openingBalanceRef}
-                  accessibilityLabel={translations.openingBalance}
-                  value={openingBalance}
-                  onChangeText={(text) => {
-                    setOpeningBalance(text);
-                    clearError('openingBalance');
-                  }}
-                  editable={!saving}
-                  keyboardType="numbers-and-punctuation"
-                  autoCorrect={false}
-                  style={[
-                    inputStyle,
-                    errors.openingBalance && {
-                      borderColor: palette.error,
-                    },
-                  ]}
-                />
-
-                <FieldError message={errors.openingBalance} />
-              </>
-            )}
-
-            <Text style={[styles.label, { color: palette.text }]}>
-              {translations.currency}
-            </Text>
-
-            {account ? (
-              <Text
-                style={[
-                  styles.currency,
-                  { color: palette.text },
-                ]}
-              >
-                {currencyCode}
-              </Text>
-            ) : (
-              <View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    `${translations.currency}: ${currencyCode}`
-                  }
-                  accessibilityState={{
-                    expanded: currencyExpanded,
-                    disabled: saving,
-                  }}
-                  disabled={saving}
-                  onPress={() => {
-                    Keyboard.dismiss();
-                    setCurrencyExpanded((current) => !current);
-                  }}
-                  style={[
-                    styles.currencyField,
-                    {
-                      backgroundColor: palette.card,
-                      borderColor: palette.border,
-                    },
-                  ]}
-                >
+                {account ? (
                   <Text
                     style={[
-                      styles.currencyCode,
+                      styles.currency,
                       { color: palette.text },
                     ]}
                   >
                     {currencyCode}
                   </Text>
-
-                  <Text
-                    accessible={false}
-                    style={{ color: palette.accent }}
-                  >
-                    {currencyExpanded ? '▴' : '▾'}
-                  </Text>
-                </Pressable>
-
-                {currencyExpanded && (
-                  <ScrollView
-                    nestedScrollEnabled
-                    keyboardShouldPersistTaps="handled"
-                    style={[
-                      styles.currencyList,
-                      {
-                        backgroundColor: palette.card,
-                        borderColor: palette.border,
-                      },
-                    ]}
-                  >
-                    {CURRENCY_CODES.map((code) => (
-                      <Pressable
-                        key={code}
-                        accessibilityRole="radio"
-                        accessibilityLabel={code}
-                        accessibilityState={{
-                          checked: currencyCode === code,
-                          disabled: saving,
-                        }}
-                        disabled={saving}
-                        onPress={() => {
-                          setCurrencyCode(code);
-                          setCurrencyExpanded(false);
-                          clearError('openingBalance');
-                        }}
-                        style={styles.currencyOption}
+                ) : (
+                  <View>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        `${translations.currency}: ${currencyCode}`
+                      }
+                      accessibilityState={{
+                        expanded: currencyExpanded,
+                        disabled: saving,
+                      }}
+                      disabled={saving}
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        setCurrencyExpanded((current) => !current);
+                      }}
+                      style={[
+                        styles.currencyField,
+                        {
+                          backgroundColor: palette.card,
+                          borderColor: palette.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.currencyCode,
+                          { color: palette.text },
+                        ]}
                       >
-                        <Text
-                          style={[
-                            styles.currencyCode,
-                            {
-                              color: currencyCode === code
-                                ? palette.accent
-                                : palette.text,
-                            },
-                          ]}
-                        >
-                          {code}
-                        </Text>
+                        {currencyCode}
+                      </Text>
 
-                        <Text style={{ color: palette.accent }}>
-                          {currencyCode === code ? '✓' : ''}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
+                      <Text
+                        accessible={false}
+                        style={{ color: palette.accent }}
+                      >
+                        {currencyExpanded ? '▴' : '▾'}
+                      </Text>
+                    </Pressable>
+
+                    {currencyExpanded && (
+                      <ScrollView
+                        nestedScrollEnabled
+                        keyboardShouldPersistTaps="handled"
+                        style={[
+                          styles.currencyList,
+                          {
+                            backgroundColor: palette.card,
+                            borderColor: palette.border,
+                          },
+                        ]}
+                      >
+                        {CURRENCY_CODES.map((code) => (
+                          <Pressable
+                            key={code}
+                            accessibilityRole="radio"
+                            accessibilityLabel={code}
+                            accessibilityState={{
+                              checked: currencyCode === code,
+                              disabled: saving,
+                            }}
+                            disabled={saving}
+                            onPress={() => {
+                              setCurrencyCode(code);
+                              setCurrencyExpanded(false);
+                              clearError('openingBalance');
+                            }}
+                            style={styles.currencyOption}
+                          >
+                            <Text
+                              style={[
+                                styles.currencyCode,
+                                {
+                                  color: currencyCode === code
+                                    ? palette.accent
+                                    : palette.text,
+                                },
+                              ]}
+                            >
+                              {code}
+                            </Text>
+
+                            <Text style={{ color: palette.accent }}>
+                              {currencyCode === code ? '✓' : ''}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                    )}
+                  </View>
                 )}
               </View>
-            )}
+            </View>
 
             <Text style={[styles.label, { color: palette.text }]}>
               {translations.accountIcon}
             </Text>
 
-            <View style={styles.iconOptions}>
-              {iconOptions.map((option) => (
-                <Pressable
-                  key={option.key}
-                  accessibilityRole="radio"
-                  accessibilityState={{
-                    checked: iconKey === option.key,
-                  }}
-                  accessibilityLabel={option.label}
-                  disabled={saving}
-                  onPress={() => setIconKey(option.key)}
-                  style={[
-                    styles.iconOption,
-                    {
-                      backgroundColor: palette.card,
-                      borderColor: iconKey === option.key
-                        ? palette.accent
-                        : palette.border,
-                    },
-                  ]}
-                >
-                  <AccountIcon
-                    iconKey={option.key}
-                    color={palette.text}
-                  />
-                </Pressable>
-              ))}
-            </View>
+            <CompactIconSelect
+              title={translations.accountIcon}
+              options={[
+                ...ACCOUNT_ICON_KEYS.map((key) => ({
+                  value: key,
+                  label: translations.accountIcons[key],
+                })),
+                ...ACCOUNT_CURRENCY_SYMBOLS.map((symbol) => ({
+                  value: `currency:${symbol}`,
+                  label: symbol,
+                })),
+              ]}
+              value={iconKey}
+              onChange={setIconKey}
+              disabled={saving}
+              colorSelectedOnly
+              getIconBackgroundColor={() => iconColor}
+              renderIcon={(key, color, size) => (
+                <AccountIcon
+                  iconKey={key}
+                  color={color}
+                  size={size}
+                />
+              )}
+            />
+
+            <IconColorSelect
+              palette="account"
+              value={iconColor}
+              onChange={setIconColor}
+              disabled={saving}
+            />
 
             <View style={styles.actions}>
               <AppButton
@@ -551,13 +565,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 20,
-    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 6,
   },
   title: {
     fontSize: 24,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   label: {
     fontSize: 15,
@@ -571,7 +586,24 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   description: {
-    minHeight: 96,
+    height: 62,
+    paddingVertical: 8,
+    lineHeight: 22,
+  },
+  balanceCurrencyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  balanceField: {
+    flex: 3,
+    minWidth: 0,
+    gap: 6,
+  },
+  currencyColumn: {
+    flex: 2,
+    minWidth: 0,
+    gap: 6,
   },
   currency: {
     fontSize: 16,
@@ -592,7 +624,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: 12,
-    marginTop: 16,
+    marginTop: 8,
   },
   currencyField: {
     flexDirection: 'row',

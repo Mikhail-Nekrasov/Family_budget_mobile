@@ -8,6 +8,7 @@ export type Account = {
 
   currencyCode: string;
   iconKey: string;
+  iconColor: string | null;
 
   openingBalanceMinor: number;
   balanceMinor: number;

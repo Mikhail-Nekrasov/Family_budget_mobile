@@ -31,14 +31,14 @@ export const DEFAULT_CATEGORIES = [
   { key: 'pets', type: 'EXPENSE', iconKey: 'pets', sortOrder: 27 },
   { key: 'repairs', type: 'EXPENSE', iconKey: 'repairs', sortOrder: 28 },
   { key: 'charity', type: 'EXPENSE', iconKey: 'charity', sortOrder: 29 },
-  { key: 'otherExpense', type: 'EXPENSE', iconKey: 'category', sortOrder: 30 },
+  { key: 'otherExpense', type: 'EXPENSE', iconKey: 'otherExpense', sortOrder: 30 },
   { key: 'salary', type: 'INCOME', iconKey: 'salary', sortOrder: 0 },
   { key: 'interest', type: 'INCOME', iconKey: 'interest', sortOrder: 1 },
-  { key: 'rentalIncome', type: 'INCOME', iconKey: 'housing', sortOrder: 2 },
-  { key: 'giftsIncome', type: 'INCOME', iconKey: 'gift', sortOrder: 3 },
+  { key: 'rentalIncome', type: 'INCOME', iconKey: 'rentalIncome', sortOrder: 2 },
+  { key: 'giftsIncome', type: 'INCOME', iconKey: 'giftsIncome', sortOrder: 3 },
   { key: 'business', type: 'INCOME', iconKey: 'business', sortOrder: 4 },
   { key: 'benefits', type: 'INCOME', iconKey: 'benefits', sortOrder: 5 },
-  { key: 'otherIncome', type: 'INCOME', iconKey: 'category', sortOrder: 6 },
+  { key: 'otherIncome', type: 'INCOME', iconKey: 'otherIncome', sortOrder: 6 },
 ] as const satisfies readonly {
   key: string;
   type: EntryType;

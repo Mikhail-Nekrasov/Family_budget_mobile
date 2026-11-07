@@ -80,6 +80,20 @@ export function parsePeriodDate(value: string): Date {
   return result;
 }
 
+export function weekDates(
+  date: string,
+): { from: Date; through: Date } {
+  const from = parsePeriodDate(date);
+
+  const daysSinceMonday = (from.getDay() + 6) % 7;
+  from.setDate(from.getDate() - daysSinceMonday);
+
+  const through = new Date(from.getTime());
+  through.setDate(through.getDate() + 6);
+
+  return { from, through };
+}
+
 export function currentMonthPeriod(now = new Date()): EntryPeriod {
   return { kind: 'month', year: now.getFullYear(), month: now.getMonth() };
 }
@@ -103,6 +117,28 @@ export function periodBounds(period: EntryPeriod, now = new Date()): { from?: Da
     to.setDate(to.getDate() + 1);
     return { from, to };
   }
+
+  if (period.kind === 'day' || period.kind === 'week') {
+    const from = period.kind === 'day'
+      ? parsePeriodDate(period.date)
+      : weekDates(period.date).from;
+
+    if (from > today) {
+      throw new Error('Period must not begin in the future');
+    }
+
+    const to = new Date(from.getTime());
+
+    to.setDate(
+      to.getDate() + (period.kind === 'day' ? 1 : 7),
+    );
+
+    return {
+      from,
+      to: to < tomorrow ? to : tomorrow,
+    };
+  }
+
   validateYear(period.year);
   if (period.kind === 'month' && (!Number.isInteger(period.month) || period.month < 0 || period.month > 11)) {
     throw new Error('Invalid period month');
@@ -121,6 +157,25 @@ export function shiftPeriod(period: EntryPeriod, direction: -1 | 1, now = new Da
   if (period.kind === 'all' || period.kind === 'range') {
     return period;
   }
+
+  if (period.kind === 'day' || period.kind === 'week') {
+    const date = period.kind === 'day'
+      ? parsePeriodDate(period.date)
+      : weekDates(period.date).from;
+
+    date.setDate(
+      date.getDate() +
+        direction * (period.kind === 'day' ? 1 : 7),
+    );
+
+    return isEntryDateAllowed(date, now)
+      ? {
+          kind: period.kind,
+          date: localDateKey(date),
+        }
+      : period;
+  }
+
   if (period.kind === 'year') {
     const year = period.year + direction;
     return year >= MIN_PERIOD_YEAR && year <= Math.min(MAX_PERIOD_YEAR, now.getFullYear())
@@ -142,6 +197,41 @@ export function formatEntryPeriod(
 ): string {
   if (period.kind === 'all') {
     return allTimeLabel;
+  }
+
+  if (period.kind === 'day') {
+    return new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(
+      toCalendarPickerDate(
+        parsePeriodDate(period.date),
+        true,
+      ),
+    );
+  }
+
+  if (period.kind === 'week') {
+    const { from, through } = weekDates(period.date);
+
+    const formatter = new Intl.DateTimeFormat(locale, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+
+    const fromLabel = formatter.format(
+      toCalendarPickerDate(from, true),
+    );
+
+    const throughLabel = formatter.format(
+      toCalendarPickerDate(through, true),
+    );
+
+    return `${fromLabel} – ${throughLabel}`;
   }
 
   if (period.kind === 'range') {

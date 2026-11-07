@@ -1,10 +1,27 @@
 import { DEFAULT_CATEGORIES } from '@/constants/default-categories';
+import {
+  ACCOUNT_ICON_COLOR_ROWS,
+  defaultCategoryIconColor,
+  ICON_COLOR_ROWS,
+} from '@/constants/icon-colors';
 import { en } from '@/i18n/en';
 
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 15;
+const DATABASE_VERSION = 19;
+
+// Only used to identify the colors assigned by migration 16.
+function legacyCategoryIconColor(key: string, income: boolean): string {
+  if (['groceries', 'restaurants', 'health', 'sports'].includes(key)) {
+    return key === 'restaurants' ? '#6D9C4C' : '#397B55';
+  }
+  if (['transport', 'car', 'travel', 'telecom'].includes(key)) return '#307C8A';
+  if (['rent', 'utilities', 'household', 'furniture', 'repairs', 'appliances', 'kitchenware'].includes(key)) return '#9B6B20';
+  if (['cosmetics', 'clothing', 'gifts', 'family', 'pets', 'charity'].includes(key)) return '#AE536C';
+  if (['entertainment', 'hobbies', 'videoGames', 'subscriptions'].includes(key)) return '#7955A3';
+  return income ? '#397B55' : '#365BBC';
+}
 
 export async function initializeDatabase(
   database: SQLiteDatabase,
@@ -323,8 +340,137 @@ export async function initializeDatabase(
       `);
     }
 
+    if (currentVersion < 16) {
+      await database.execAsync(`
+        ALTER TABLE accounts
+        ADD COLUMN icon_color TEXT NOT NULL DEFAULT '#365BBC'
+          CHECK (
+            length(icon_color) = 7
+            AND substr(icon_color, 1, 1) = '#'
+            AND substr(icon_color, 2) NOT GLOB '*[^0-9A-Fa-f]*'
+          );
+
+        ALTER TABLE categories
+        ADD COLUMN icon_color TEXT NOT NULL DEFAULT '#365BBC'
+          CHECK (
+            length(icon_color) = 7
+            AND substr(icon_color, 1, 1) = '#'
+            AND substr(icon_color, 2) NOT GLOB '*[^0-9A-Fa-f]*'
+          );
+
+        UPDATE categories
+        SET icon_color = '#397B55'
+        WHERE type = 'INCOME';
+      `);
+
+      for (const definition of DEFAULT_CATEGORIES) {
+        await database.runAsync(
+          'UPDATE categories SET icon_color = ? WHERE default_key = ? AND type = ?',
+          legacyCategoryIconColor(definition.key, definition.type === 'INCOME'),
+          definition.key,
+          definition.type,
+        );
+      }
+    }
+
+    if (currentVersion < 17) {
+      for (const table of ['accounts', 'categories'] as const) {
+        await database.execAsync(`
+          ALTER TABLE ${table} RENAME COLUMN icon_color TO legacy_icon_color;
+          ALTER TABLE ${table} ADD COLUMN icon_color TEXT
+            CHECK (icon_color IS NULL OR (
+              length(icon_color) = 7
+              AND substr(icon_color, 1, 1) = '#'
+              AND substr(icon_color, 2) NOT GLOB '*[^0-9A-Fa-f]*'
+            ));
+          UPDATE ${table} SET icon_color = legacy_icon_color;
+          ALTER TABLE ${table} DROP COLUMN legacy_icon_color;
+        `);
+      }
+
+      for (const definition of DEFAULT_CATEGORIES) {
+        await database.runAsync(
+          `UPDATE categories SET icon_color = ?
+           WHERE default_key = ? AND type = ? AND icon_color = ?`,
+          defaultCategoryIconColor(definition.key),
+          definition.key,
+          definition.type,
+          legacyCategoryIconColor(definition.key, definition.type === 'INCOME'),
+        );
+      }
+    }
+
+    if (currentVersion < 18) {
+      // Match each legacy swatch to its new counterpart in the same position.
+      const colorPairs: [string, string][] = ICON_COLOR_ROWS.flatMap(
+        (row, rowIndex) => row.map((color, columnIndex): [string, string] => [
+          color,
+          ACCOUNT_ICON_COLOR_ROWS[rowIndex][columnIndex],
+        ]),
+      );
+      // These swatches were removed from the shared palette in version 17.
+      colorPairs.push(
+        ['#F9DFCC', ACCOUNT_ICON_COLOR_ROWS[1][1]],
+        ['#DC9557', ACCOUNT_ICON_COLOR_ROWS[1][3]],
+        ['#C47C36', ACCOUNT_ICON_COLOR_ROWS[1][4]],
+        ['#805024', ACCOUNT_ICON_COLOR_ROWS[1][5]],
+        ['#F3BE87', ACCOUNT_ICON_COLOR_ROWS[1][2]],
+        ['#E9C96D', ACCOUNT_ICON_COLOR_ROWS[2][2]],
+        ['#CAA044', ACCOUNT_ICON_COLOR_ROWS[2][3]],
+        ['#73364D', ACCOUNT_ICON_COLOR_ROWS[7][5]],
+      );
+
+      const cases = colorPairs.map(() => 'WHEN ? THEN ?').join(' ');
+      const placeholders = colorPairs.map(() => '?').join(', ');
+      await database.runAsync(
+        `UPDATE accounts
+         SET icon_color = CASE UPPER(icon_color) ${cases} END
+         WHERE UPPER(icon_color) IN (${placeholders})`,
+        ...colorPairs.flat(),
+        ...colorPairs.map(([oldColor]) => oldColor),
+      );
+    }
+
     await database.execAsync(
       `PRAGMA user_version = ${DATABASE_VERSION}`,
     );
   });
+
+  if (currentVersion < 19) {
+    await database.execAsync(`
+      UPDATE categories
+      SET icon_key = CASE type
+        WHEN 'INCOME' THEN 'otherIncome' ELSE 'otherExpense'
+      END
+      WHERE icon_key = 'category';
+
+      UPDATE categories SET icon_key = 'rentalIncome'
+      WHERE type = 'INCOME' AND default_key = 'rentalIncome'
+        AND icon_key = 'housing';
+
+      UPDATE categories SET icon_key = 'giftsIncome'
+      WHERE type = 'INCOME' AND default_key = 'giftsIncome'
+        AND icon_key = 'gift';
+    `);
+
+    for (const definition of DEFAULT_CATEGORIES) {
+      if (definition.key !== 'otherExpense' && definition.key !== 'otherIncome') {
+        continue;
+      }
+
+      await database.runAsync(
+        `INSERT INTO categories (
+          sync_id, name, type, icon_key, default_key, sort_order, icon_color
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(type, default_key) WHERE default_key IS NOT NULL DO NOTHING`,
+        randomUUID(),
+        en.defaultCategories[definition.key],
+        definition.type,
+        definition.iconKey,
+        definition.key,
+        definition.sortOrder,
+        defaultCategoryIconColor(definition.key),
+      );
+    }
+  }
 }

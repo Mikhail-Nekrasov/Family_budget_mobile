@@ -8,8 +8,8 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
-  useColorScheme
+  useColorScheme,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,7 +17,16 @@ import { AppButton } from '@/components/app-button';
 import { CategoryIcon } from '@/components/categories/category-icon';
 import { CompactIconSelect } from '@/components/compact-icon-select';
 import { FieldError } from '@/components/field-error';
+import { IconColorSelect } from '@/components/icons/icon-color-select';
 import { ScreenBackground } from '@/components/screen-background';
+import {
+  CATEGORY_ICON_PATHS,
+  EXPENSE_CATEGORY_ICON_KEYS,
+  getOtherCategoryIconKey,
+  INCOME_CATEGORY_ICON_KEYS,
+  type CategoryIconKey,
+} from '@/constants/category-icons';
+import { defaultCategoryIconColor } from '@/constants/icon-colors';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import type { Category } from '@/models/category';
@@ -29,7 +38,6 @@ import {
   deleteLocalCategory,
   updateCategory,
 } from '@/repositories/category-repository';
-import { CATEGORY_ICON_KEYS } from '@/constants/category-icons';
 import { getCategoryName } from '@/utils/category-name';
 
 type CategoryFormProps = {
@@ -59,7 +67,28 @@ export function CategoryForm({
     showFormError,
   } = useFormErrors<'name'>();
 
-  const [iconKey, setIconKey] = useState<string>(category?.iconKey ?? 'category');
+  const [iconKey, setIconKey] = useState<string>(
+    category?.iconKey ?? getOtherCategoryIconKey(type),
+  );
+
+  const iconOptions: CategoryIconKey[] = type === 'INCOME'
+    ? [...INCOME_CATEGORY_ICON_KEYS]
+    : [...EXPENSE_CATEGORY_ICON_KEYS];
+
+  const savedIconKey = category?.iconKey as CategoryIconKey | undefined;
+
+  if (
+    savedIconKey &&
+    Object.hasOwn(CATEGORY_ICON_PATHS, savedIconKey) &&
+    !iconOptions.includes(savedIconKey)
+  ) {
+    iconOptions.push(savedIconKey);
+  }
+  const [iconColor, setIconColor] = useState(
+    category
+      ? category.iconColor
+      : defaultCategoryIconColor(null, type === 'INCOME'),
+  );
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
 
@@ -137,8 +166,18 @@ export function CategoryForm({
         }
       }
       savedCategory = category
-        ? await updateCategory(database, category.syncId, { name, iconKey, language })
-        : await createCategory(database, { name, type, iconKey });
+        ? await updateCategory(database, category.syncId, {
+            name,
+            iconKey,
+            iconColor,
+            language,
+          })
+        : await createCategory(database, {
+            name,
+            type,
+            iconKey,
+            iconColor,
+          });
     } catch (error) {
       console.warn('Failed to save category', error);
 
@@ -276,7 +315,7 @@ export function CategoryForm({
 
             <CompactIconSelect
               title={translations.categoryIcon}
-              options={CATEGORY_ICON_KEYS.map((key) => ({
+              options={iconOptions.map((key) => ({
                 value: key,
                 label: translations.categoryIcons[key],
               }))}
@@ -290,6 +329,15 @@ export function CategoryForm({
                   size={size}
                 />
               )}
+              colorSelectedOnly
+              getIconBackgroundColor={() => iconColor}
+            />
+
+            <IconColorSelect
+              palette="category"
+              value={iconColor}
+              onChange={setIconColor}
+              disabled={saving}
             />
 
             <View style={styles.actions}>

@@ -22,6 +22,7 @@ import { CompactIconSelect } from '@/components/compact-icon-select';
 import { EntryDateTime } from '@/components/entries/entry-date-time';
 import { FieldError } from '@/components/field-error';
 import { ScreenBackground } from '@/components/screen-background';
+import { getOtherCategoryIconKey } from '@/constants/category-icons';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
@@ -501,6 +502,7 @@ export function EntryForm({
                   options={categories.map((category) => ({
                     value: category.syncId,
                     label: getCategoryName(category, language),
+                    backgroundColor: category.iconColor,
                   }))}
                   previewValues={categoryPreviewIds}
                   value={categorySyncId}
@@ -527,7 +529,7 @@ export function EntryForm({
 
                     return (
                       <CategoryIcon
-                        iconKey={category?.iconKey ?? 'category'}
+                        iconKey={category?.iconKey ?? getOtherCategoryIconKey(type)}
                         color={color}
                         size={size}
                       />

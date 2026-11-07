@@ -6,6 +6,7 @@ import { MenuButton } from '@/components/menu-button';
 import { PeriodSelector } from '@/components/periods/period-selector';
 import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
+import { getOtherCategoryIconKey } from '@/constants/category-icons';
 import { useEntryConversion } from '@/hooks/use-entry-conversion';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
@@ -356,11 +357,23 @@ export default function HomeScreen() {
               return null;
             }
 
+            const category = categories.find(
+              (category) => category.syncId === item.categorySyncId,
+            );
+
             return (
               <EntryCard
                 title={item.title}
                 accountName={account.name}
                 iconKey={account.iconKey}
+                iconColor={account.iconColor}
+                categoryIconKey={category?.iconKey ?? getOtherCategoryIconKey(item.type)}
+                categoryIconColor={category?.iconColor ?? null}
+                categoryName={
+                  category
+                    ? getCategoryName(category, language)
+                    : translations.entryCategory
+                }
                 amount={formatEntryAmount(
                   item.amountMinor,
                   account.currencyCode,

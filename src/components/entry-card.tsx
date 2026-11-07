@@ -8,12 +8,16 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import { AccountIcon } from '@/components/accounts/account-icon';
+import { IconBadge } from '@/components/icons/icon-badge';
 
 type EntryCardProps = {
   title: string;
   accountName: string;
   iconKey: string;
+  iconColor: string | null;
+  categoryIconKey: string;
+  categoryIconColor: string | null;
+  categoryName: string;
   amount: string;
   currencyCode: string;
   currencySymbol: string;
@@ -26,6 +30,10 @@ export function EntryCard({
   title,
   accountName,
   iconKey,
+  iconColor,
+  categoryIconKey,
+  categoryIconColor,
+  categoryName,
   amount,
   currencyCode,
   currencySymbol,
@@ -117,16 +125,31 @@ export function EntryCard({
 
       <View
         accessible
-        accessibilityLabel={accountName}
-        style={[
-          styles.accountIcon,
-          { backgroundColor: palette.icon },
-        ]}
+        accessibilityLabel={`${accountName}, ${categoryName}`}
+        style={styles.accountIcon}
       >
-        <AccountIcon
-          iconKey={iconKey}
-          color={palette.accent}
+        <IconBadge
+          kind="category"
+          iconKey={categoryIconKey}
+          color={categoryIconColor}
         />
+
+        <View
+          style={[
+            styles.cornerBadge,
+            {
+              borderColor: dark ? '#1C2432' : '#FFFFFF',
+              backgroundColor: dark ? '#1C2432' : '#FFFFFF',
+            },
+          ]}
+        >
+          <IconBadge
+            kind="account"
+            iconKey={iconKey}
+            color={iconColor}
+            size={24}
+          />
+        </View>
       </View>
 
       <Text
@@ -171,7 +194,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 22,
     borderRadius: 16,
     padding: 14,
     minHeight: 62,
@@ -221,5 +244,12 @@ const styles = StyleSheet.create({
   },
   currency: {
     fontSize: 16,
+  },
+  cornerBadge: {
+    position: 'absolute',
+    right: -16,
+    bottom: -5,
+    borderWidth: 2,
+    borderRadius: 14,
   },
 });

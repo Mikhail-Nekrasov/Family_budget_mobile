@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { isIconColor } from '@/constants/icon-colors';
 import type { Language } from '@/i18n/languages';
 import type { Category } from '@/models/category';
 import type { EntryType } from '@/models/entry-type';
@@ -10,11 +11,13 @@ export type CreateCategoryInput = {
   name: string;
   type: EntryType;
   iconKey: string;
+  iconColor: string | null;
 };
 
 export type UpdateCategoryInput = {
   name: string;
   iconKey: string;
+  iconColor: string | null;
   language: Language;
 };
 
@@ -28,6 +31,7 @@ const CATEGORY_COLUMNS = `
   server_version AS serverVersion,
   name,
   icon_key AS iconKey,
+  icon_color AS iconColor,
   type,
   default_key AS defaultKey,
   name_overrides_json AS nameOverridesJson,
@@ -86,15 +90,37 @@ export async function createCategory(
   input: CreateCategoryInput,
 ): Promise<Category> {
   validateNameAndIcon(input.name, input.iconKey);
+
+  if (input.iconColor !== null && !isIconColor(input.iconColor)) {
+    throw new Error('Invalid category icon color');
+  }
+
   if (input.type !== 'EXPENSE' && input.type !== 'INCOME') {
     throw new Error('Invalid category type');
   }
   const syncId = randomUUID();
   await database.runAsync(
-    `INSERT INTO categories (sync_id, name, type, icon_key, sort_order)
-     SELECT ?, ?, ?, ?, COALESCE(MAX(sort_order), -1) + 1
-     FROM categories WHERE type = ?`,
-    syncId, input.name.trim(), input.type, input.iconKey.trim(), input.type,
+    `
+      INSERT INTO categories (
+        sync_id,
+        name,
+        type,
+        icon_key,
+        icon_color,
+        sort_order
+      )
+      SELECT
+        ?, ?, ?, ?, ?,
+        COALESCE(MAX(sort_order), -1) + 1
+      FROM categories
+      WHERE type = ?
+    `,
+    syncId,
+    input.name.trim(),
+    input.type,
+    input.iconKey.trim(),
+    input.iconColor?.toUpperCase() ?? null,
+    input.type,
   );
   const created = await getCategoryBySyncId(database, syncId);
   if (!created) {
@@ -109,6 +135,11 @@ export async function updateCategory(
   input: UpdateCategoryInput,
 ): Promise<Category> {
   validateNameAndIcon(input.name, input.iconKey);
+
+  if (input.iconColor !== null && !isIconColor(input.iconColor)) {
+    throw new Error('Invalid category icon color');
+  }
+
   if (!['en', 'ru', 'fi'].includes(input.language)) {
     throw new Error('Unsupported category name language');
   }
@@ -125,10 +156,20 @@ export async function updateCategory(
       overrides[input.language] = name;
     }
     await transaction.runAsync(
-      `UPDATE categories SET name = ?, icon_key = ?, name_overrides_json = ?
-       WHERE sync_id = ?`,
+      `
+        UPDATE categories
+        SET
+          name = ?,
+          icon_key = ?,
+          icon_color = ?,
+          name_overrides_json = ?
+        WHERE sync_id = ?
+      `,
       current.defaultKey === null ? name : current.name,
-      input.iconKey.trim(), JSON.stringify(overrides), syncId,
+      input.iconKey.trim(),
+      input.iconColor?.toUpperCase() ?? null,
+      JSON.stringify(overrides),
+      syncId,
     );
     updated = await getCategoryBySyncId(transaction, syncId);
   });

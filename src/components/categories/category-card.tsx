@@ -8,10 +8,10 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import { CategoryIcon } from '@/components/categories/category-icon';
+import { IconBadge } from '@/components/icons/icon-badge';
 import { useLanguage } from '@/hooks/use-language';
-import { getCategoryName } from '@/utils/category-name';
 import type { Category } from '@/models/category';
+import { getCategoryName } from '@/utils/category-name';
 
 type CategoryCardProps = {
   category: Category;
@@ -102,10 +102,11 @@ export function CategoryCard({
         ]}
       />
 
-      <CategoryIcon
+      <IconBadge
+        kind="category"
         iconKey={category.iconKey}
-        color={palette.text}
-        size={24}
+        color={category.iconColor}
+        size={32}
       />
 
       <Text

@@ -19,7 +19,8 @@ import {
   MAX_PERIOD_YEAR,
   MIN_PERIOD_YEAR,
   parsePeriodDate,
-  periodBounds
+  periodBounds,
+  weekDates,
 } from '@/utils/entry-period';
 
 type Props = {
@@ -30,7 +31,7 @@ type Props = {
   onCancel: () => void;
 };
 
-type PickerStage = 'month' | 'year' | 'from' | 'through' | null;
+type PickerStage = 'day' | 'week' | 'month' | 'year' | 'from' | 'through' | null;
 
 function anchorDate(period: EntryPeriod): Date {
   return period.kind === 'range' ? parsePeriodDate(period.from) : periodBounds(period).from ?? new Date();
@@ -109,11 +110,14 @@ const selectedMonth = Math.min(month, lastMonth);
       label: formatter.format(new Date(2000, index, 15)),
     }));
   }, [locale, lastMonth]);
+
   const modes = [
+    { value: 'day', label: translations.periodDay },
+    { value: 'week', label: translations.periodWeek },
     { value: 'month', label: translations.periodMonth },
     { value: 'year', label: translations.periodYear },
-    { value: 'all', label: translations.periodAllTime },
     { value: 'range', label: translations.periodCustom },
+    { value: 'all', label: translations.periodAllTime },
   ] as const;
 
   function openWheel(next: 'month' | 'year') {
@@ -123,11 +127,23 @@ const selectedMonth = Math.min(month, lastMonth);
     setStage(next);
   }
 
-  function openCalendar(next: 'from' | 'through') {
-    if (draft.kind !== 'range') {
-      return;
+  function openCalendar(
+    next: 'day' | 'week' | 'from' | 'through',
+  ) {
+    if (next === 'from' || next === 'through') {
+      if (draft.kind !== 'range') {
+        return;
+      }
+
+      setCalendarDate(parsePeriodDate(draft[next]));
+    } else {
+      setCalendarDate(
+        draft.kind === next
+          ? parsePeriodDate(draft.date)
+          : new Date(),
+      );
     }
-    setCalendarDate(parsePeriodDate(draft[next]));
+
     setStage(next);
   }
 
@@ -143,7 +159,12 @@ const selectedMonth = Math.min(month, lastMonth);
         kind: 'year',
         year,
       });
-    } else if (stage === 'from' || stage === 'through') {
+    } else if (
+      stage === 'day' ||
+      stage === 'week' ||
+      stage === 'from' ||
+      stage === 'through'
+    ) {
       if (!isEntryDateAllowed(calendarDate)) {
         showFieldError(
           'range',
@@ -154,14 +175,23 @@ const selectedMonth = Math.min(month, lastMonth);
 
       const key = localDateKey(calendarDate);
 
-      setDraft((current) =>
-        current.kind === 'range'
-          ? {
-              ...current,
-              [stage]: key,
-            }
-          : current,
-      );
+      if (stage === 'day' || stage === 'week') {
+        setDraft({
+          kind: stage,
+          date: stage === 'week'
+            ? localDateKey(weekDates(key).from)
+            : key,
+        });
+      } else {
+        setDraft((current) =>
+          current.kind === 'range'
+            ? {
+                ...current,
+                [stage]: key,
+              }
+            : current,
+        );
+      }
     }
 
     clearError('range');
@@ -182,15 +212,19 @@ const selectedMonth = Math.min(month, lastMonth);
     onApply(draft);
   }
 
-  const title = stage === 'from'
-    ? translations.periodFrom
-    : stage === 'through'
-      ? translations.periodThrough
-      : stage === 'month'
-        ? translations.periodMonth
-        : stage === 'year'
-          ? translations.periodYear
-          : translations.periodTitle;
+  const title = stage === 'day'
+    ? translations.periodDay
+    : stage === 'week'
+      ? translations.periodWeek
+      : stage === 'from'
+        ? translations.periodFrom
+        : stage === 'through'
+          ? translations.periodThrough
+          : stage === 'month'
+            ? translations.periodMonth
+            : stage === 'year'
+              ? translations.periodYear
+              : translations.periodTitle;
 
   function formatDate(date: string): string {
     return formatCalendarDate(
@@ -222,7 +256,12 @@ const selectedMonth = Math.min(month, lastMonth);
               onChange={setYear}
             />
           </View>
-        ) : stage === 'from' || stage === 'through' ? (
+        ) : (
+          stage === 'day' ||
+          stage === 'week' ||
+          stage === 'from' ||
+          stage === 'through'
+        ) ? (
           <ScrollView
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
@@ -231,6 +270,24 @@ const selectedMonth = Math.min(month, lastMonth);
               value={calendarDate}
               onChange={setCalendarDate}
             />
+
+            {stage === 'week' && (
+              <Text
+                style={[
+                  styles.summary,
+                  { color: palette.muted },
+                ]}
+              >
+                {formatEntryPeriod(
+                  {
+                    kind: 'week',
+                    date: localDateKey(calendarDate),
+                  },
+                  locale,
+                  translations.periodAllTime,
+                )}
+              </Text>
+            )}
           </ScrollView>
         ) : (
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -244,7 +301,16 @@ const selectedMonth = Math.min(month, lastMonth);
                 accessibilityState={{ checked: draft.kind === mode.value }}
                 onPress={() => {
                   clearError('range');
-                  if (mode.value === 'month' || mode.value === 'year') {
+
+                  if (
+                    mode.value === 'day' ||
+                    mode.value === 'week'
+                  ) {
+                    openCalendar(mode.value);
+                  } else if (
+                    mode.value === 'month' ||
+                    mode.value === 'year'
+                  ) {
                     openWheel(mode.value);
                   } else if (mode.value === 'all') {
                     setDraft({ kind: 'all' });

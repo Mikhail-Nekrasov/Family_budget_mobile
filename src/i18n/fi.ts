@@ -66,6 +66,8 @@ export const fi: Messages = {
   ratesMissing: 'Osa kursseista puuttuu · yhdistä internetiin ja päivitä',
 
   periodTitle: "Ajanjakso",
+  periodDay: 'Päivä',
+  periodWeek: 'Viikko',
   periodMonth: "Kuukausi",
   periodYear: "Vuosi",
   periodAllTime: "Koko ajalta",
@@ -184,7 +186,10 @@ export const fi: Messages = {
 
   categoryIcon: 'Luokan kuvake',
   categoryIcons: {
-    category: 'Yleinen',
+    otherExpense: 'Muut',
+    otherIncome: 'Muut',
+    rentalIncome: 'Vuokratulot',
+    giftsIncome: 'Lahjat',
     groceries: 'Ruokaostokset',
     housing: 'Asuminen',
     transport: 'Liikenne',
@@ -256,4 +261,26 @@ export const fi: Messages = {
     `Poistetaanko tapahtuma ”${title}” pysyvästi?`,
 
   currencyWholeAmountRequired: 'Tässä valuutassa summan on oltava kokonaisluku',
+
+  iconColor: 'Kuvakkeen tausta',
+  noIconColor: "Ei taustaväriä",
+  moreColors: 'Lisää värejä',
+
+  accountIcons: {
+    cash: 'Käteinen',
+    card: 'Kortti',
+    bank: 'Pankki',
+    wallet: 'Kukkaro',
+    purse: 'Lompakko',
+    piggyBank: 'Säästöpossu',
+    safe: 'Kassakaappi',
+    coins: 'Kolikot',
+    business: 'Salkku',
+    moneyBag: 'Korkosäästöt',
+    investment: 'Sijoitusten kasvu',
+    diamond: 'Timantti',
+    gold: 'Kultaharkko',
+    mobileCard: 'Puhelin ja kortti',
+    bitcoin: 'Bitcoin',
+  },
 };

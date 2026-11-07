@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { isIconColor } from '@/constants/icon-colors';
 import type { Account } from '@/models/account';
 import { markAccountOrderChanged } from './account-order-sync-repository';
 
@@ -9,12 +10,13 @@ export type CreateAccountInput = {
   description: string | null;
   currencyCode: string;
   iconKey: string;
+  iconColor: string | null;
   openingBalanceMinor: number;
 };
 
 export type UpdateAccountInput = Pick<
   Account,
-  'name' | 'description' | 'iconKey'
+  'name' | 'description' | 'iconKey' | 'iconColor'
 >;
 
 const ACCOUNT_COLUMNS = `
@@ -25,6 +27,7 @@ const ACCOUNT_COLUMNS = `
   description,
   currency_code AS currencyCode,
   icon_key AS iconKey,
+  icon_color AS iconColor,
   opening_balance_minor AS openingBalanceMinor,
   balance_minor AS balanceMinor,
   archived_at AS archivedAt
@@ -72,6 +75,10 @@ export async function createAccount(
   database: SQLiteDatabase,
   input: CreateAccountInput,
 ): Promise<Account> {
+  if (input.iconColor !== null && !isIconColor(input.iconColor)) {
+    throw new Error('Invalid account icon color');
+  }
+
   const name = input.name.trim();
 
   if (name.length === 0) {
@@ -92,6 +99,7 @@ export async function createAccount(
 
     currencyCode: input.currencyCode,
     iconKey: input.iconKey,
+    iconColor: input.iconColor?.toUpperCase() ?? null,
 
     openingBalanceMinor: input.openingBalanceMinor,
     balanceMinor: input.openingBalanceMinor,
@@ -111,10 +119,11 @@ export async function createAccount(
             description,
             currency_code,
             icon_key,
+            icon_color,
             opening_balance_minor,
             balance_minor
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         account.syncId,
         account.serverId,
@@ -123,6 +132,7 @@ export async function createAccount(
         account.description,
         account.currencyCode,
         account.iconKey,
+        account.iconColor,
         account.openingBalanceMinor,
         account.balanceMinor,
       );
@@ -153,6 +163,10 @@ export async function updateAccount(
   syncId: string,
   input: UpdateAccountInput,
 ): Promise<void> {
+  if (input.iconColor !== null && !isIconColor(input.iconColor)) {
+    throw new Error('Invalid account icon color');
+  }
+
   const name = input.name.trim();
 
   if (name.length === 0) {
@@ -167,12 +181,14 @@ export async function updateAccount(
       SET
         name = ?,
         description = ?,
-        icon_key = ?
+        icon_key = ?,
+        icon_color = ?
       WHERE sync_id = ?
     `,
     name,
     description,
     input.iconKey,
+    input.iconColor?.toUpperCase() ?? null,
     syncId,
   );
 

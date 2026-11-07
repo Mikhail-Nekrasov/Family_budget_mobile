@@ -13,7 +13,7 @@ function getIconPath(iconKey: string): string {
     return CATEGORY_ICON_PATHS[iconKey as keyof typeof CATEGORY_ICON_PATHS];
   }
 
-  return CATEGORY_ICON_PATHS.category;
+  return CATEGORY_ICON_PATHS.otherExpense;
 }
 
 export function CategoryIcon({

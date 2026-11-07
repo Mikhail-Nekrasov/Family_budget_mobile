@@ -9,7 +9,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import { AccountIcon } from '@/components/accounts/account-icon';
+import { IconBadge } from '@/components/icons/icon-badge';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
 import { formatMoney } from '@/utils/format-money';
@@ -94,10 +94,11 @@ export function AccountSelect({
         ]}
       >
         {selectedAccount && (
-          <AccountIcon
+          <IconBadge
+            kind="account"
             iconKey={selectedAccount.iconKey}
-            color={palette.text}
-            size={24}
+            color={selectedAccount.iconColor}
+            size={32}
           />
         )}
 
@@ -168,12 +169,11 @@ export function AccountSelect({
                   },
                 ]}
               >
-                <AccountIcon
+                <IconBadge
+                  kind="account"
                   iconKey={account.iconKey}
-                  color={
-                    selected ? palette.accent : palette.text
-                  }
-                  size={24}
+                  color={account.iconColor}
+                  size={32}
                 />
 
                 <Text

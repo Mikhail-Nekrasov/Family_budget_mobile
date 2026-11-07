@@ -66,6 +66,8 @@ export const ru: Messages = {
   ratesMissing: 'Некоторых курсов нет · подключитесь к интернету и нажмите «Обновить»',
 
   periodTitle: "Период",
+  periodDay: 'День',
+  periodWeek: 'Неделя',
   periodMonth: "Месяц",
   periodYear: "Год",
   periodAllTime: "За всё время",
@@ -184,7 +186,10 @@ export const ru: Messages = {
 
   categoryIcon: 'Иконка категории',
   categoryIcons: {
-    category: 'Общее',
+    otherExpense: 'Другое',
+    otherIncome: 'Другое',
+    rentalIncome: 'Сдача в аренду',
+    giftsIncome: 'Подарки',
     groceries: 'Продукты',
     housing: 'Жильё',
     transport: 'Транспорт',
@@ -256,4 +261,26 @@ export const ru: Messages = {
     `Удалить операцию «${title}» без возможности восстановления?`,
 
   currencyWholeAmountRequired: 'В этой валюте сумма должна быть целым числом',
+
+  iconColor: 'Фон иконки',
+  noIconColor: "Без цвета",
+  moreColors: 'Другие цвета',
+
+  accountIcons: {
+    cash: 'Наличные',
+    card: 'Карта',
+    bank: 'Банк',
+    wallet: 'Кошелёк',
+    purse: 'Бумажник',
+    piggyBank: 'Копилка',
+    safe: 'Сейф',
+    coins: 'Монеты',
+    business: 'Портфель',
+    moneyBag: 'Процентные накопления',
+    investment: 'Рост инвестиций',
+    diamond: 'Бриллиант',
+    gold: 'Слиток золота',
+    mobileCard: 'Телефон и карта',
+    bitcoin: 'Биткоин',
+  },
 };
