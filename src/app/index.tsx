@@ -166,32 +166,13 @@ export default function HomeScreen() {
     enabled: status === 'ready' && !createVisible,
   });
 
-  const chartColors = [
-    '#6488E8',
-    '#E7A45B',
-    '#65B79A',
-    '#B58AD9',
-    '#DE7D94',
-    '#65B7CE',
-    '#A6B85D',
-    '#BD9275',
-  ];
-
   const segments: ChartSegment[] = categories
-    .map((category) => {
-      let hash = 0;
-
-      for (const character of category.syncId) {
-        hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
-      }
-
-      return {
-        id: category.syncId,
-        name: getCategoryName(category, language),
-        color: chartColors[hash % chartColors.length],
-        amountMinor: categoryTotals.get(category.syncId) ?? 0,
-      };
-    })
+    .map((category) => ({
+      id: category.syncId,
+      name: getCategoryName(category, language),
+      color: category.iconColor,
+      amountMinor: categoryTotals.get(category.syncId) ?? 0,
+    }))
     .filter((segment) => segment.amountMinor > 0);
 
   function formatEntryAmount(
@@ -285,6 +266,7 @@ export default function HomeScreen() {
             </View>
             <View style={[styles.chartPanel, { height: chartSize }]}>
               <CategoryChart
+                key={JSON.stringify([type, period, accountIds, categoryIds])}
                 size={chartSize}
                 available={status === 'ready' && !conversionIncomplete}
                 loading={status === 'loading'}
