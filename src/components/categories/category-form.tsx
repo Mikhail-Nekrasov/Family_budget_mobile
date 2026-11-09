@@ -39,6 +39,7 @@ import {
   updateCategory,
 } from '@/repositories/category-repository';
 import { getCategoryName } from '@/utils/category-name';
+import { playCompletionFeedback } from '@/utils/haptic-feedback';
 
 type CategoryFormProps = {
   type: EntryType;
@@ -89,7 +90,9 @@ export function CategoryForm({
       ? category.iconColor
       : defaultCategoryIconColor(null, type === 'INCOME'),
   );
-  const [saving, setSaving] = useState(false);
+  const [pendingAction, setPendingAction] =
+    useState<'save' | 'delete' | null>(null);
+  const saving = pendingAction !== null;
   const savingRef = useRef(false);
 
   const [canDelete, setCanDelete] = useState<boolean | null>(null);
@@ -142,7 +145,7 @@ export function CategoryForm({
     }
 
     savingRef.current = true;
-    setSaving(true);
+    setPendingAction('save');
 
     let savedCategory: Category;
 
@@ -185,9 +188,10 @@ export function CategoryForm({
       return;
     } finally {
       savingRef.current = false;
-      setSaving(false);
+      setPendingAction(null);
     }
 
+    playCompletionFeedback();
     onSaved(savedCategory);
   }
 
@@ -196,7 +200,7 @@ export function CategoryForm({
       return;
     }
     savingRef.current = true;
-    setSaving(true);
+    setPendingAction('delete');
     try {
       await deleteLocalCategory(database, category.syncId);
     } catch (error) {
@@ -210,8 +214,10 @@ export function CategoryForm({
       return;
     } finally {
       savingRef.current = false;
-      setSaving(false);
+      setPendingAction(null);
     }
+
+    playCompletionFeedback();
     onCancel();
   }
 
@@ -342,13 +348,11 @@ export function CategoryForm({
 
             <View style={styles.actions}>
               <AppButton
-                title={
-                  saving
-                    ? translations.saving
-                    : translations.save
-                }
-                nativeGlass
+                title={pendingAction === 'save' ? translations.saving : translations.save}
+                rightIcon="check"
+                loading={pendingAction === 'save'}
                 disabled={saving}
+                nativeGlass
                 onPress={() => void saveCategory()}
               />
 
@@ -356,6 +360,8 @@ export function CategoryForm({
                 <>
                   <AppButton
                     title={translations.deleteCategory}
+                    rightIcon="delete"
+                    loading={pendingAction === 'delete'}
                     nativeGlass
                     variant="danger"
                     disabled={saving || canDelete !== true}
@@ -371,6 +377,7 @@ export function CategoryForm({
 
               <AppButton
                 title={translations.cancel}
+                rightIcon="cancel"
                 nativeGlass
                 disabled={saving}
                 onPress={onCancel}

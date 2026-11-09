@@ -78,6 +78,8 @@ export default function ExchangeRatesScreen() {
               {!historical && (
                 <AppButton
                   title={translations.ratesRefresh}
+                  keepTitleCentered
+                  rightIcon="refresh"
                   nativeGlass
                   disabled={!online}
                   loading={loading}

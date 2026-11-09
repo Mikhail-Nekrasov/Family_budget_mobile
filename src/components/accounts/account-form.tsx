@@ -27,6 +27,7 @@ import {
 } from '@/constants/account-icons';
 import { CURRENCY_CODES } from '@/constants/currencies';
 import { DEFAULT_ACCOUNT_ICON_COLOR } from '@/constants/icon-colors';
+import { useDismissOnOutsideTap } from '@/hooks/use-dismiss-on-outside-tap';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
@@ -38,6 +39,7 @@ import {
   restoreAccount,
   updateAccount
 } from '@/repositories/account-repository';
+import { playCompletionFeedback } from '@/utils/haptic-feedback';
 import { parseAmountToMinor } from '@/utils/money';
 
 
@@ -58,6 +60,11 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
   );
 
   const [currencyExpanded, setCurrencyExpanded] = useState(false);
+
+  const { outsideTapHandlers, markInsideTouch } = useDismissOnOutsideTap(
+    currencyExpanded,
+    () => setCurrencyExpanded(false),
+  );
 
   const nameRef = useRef<ComponentRef<typeof TextInput>>(null);
 
@@ -81,7 +88,9 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
   const [iconColor, setIconColor] = useState(
     account ? account.iconColor : DEFAULT_ACCOUNT_ICON_COLOR,
   );
-  const [saving, setSaving] = useState(false);
+  const [pendingAction, setPendingAction] =
+    useState<'save' | 'delete' | 'archive' | 'restore' | null>(null);
+  const saving = pendingAction !== null;
 
   const savingRef = useRef(false);
   const dark = useColorScheme() === 'dark';
@@ -182,7 +191,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
     }
 
     savingRef.current = true;
-    setSaving(true);
+    setPendingAction('save');
 
     try {
       if (account) {
@@ -209,9 +218,10 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
       return;
     } finally {
       savingRef.current = false;
-      setSaving(false);
+      setPendingAction(null);
     }
 
+    playCompletionFeedback();
     onSaved();
   }
 
@@ -229,7 +239,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
     };
 
     savingRef.current = true;
-    setSaving(true);
+    setPendingAction(action);
 
     try {
       await actions[action](database, account.syncId);
@@ -243,9 +253,10 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
       return;
     } finally {
       savingRef.current = false;
-      setSaving(false);
+      setPendingAction(null);
     }
 
+    if (action === 'delete' || action === 'archive' || action === 'restore') playCompletionFeedback();
     onSaved();
   }
 
@@ -273,7 +284,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
 
   return (
     <ScreenBackground>
-      <SafeAreaView style={styles.screen}>
+      <SafeAreaView style={styles.screen} {...outsideTapHandlers}>
         <KeyboardAvoidingView
           style={styles.screen}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -372,7 +383,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
                     {currencyCode}
                   </Text>
                 ) : (
-                  <View>
+                  <View onTouchStartCapture={markInsideTouch}>
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={
@@ -505,13 +516,11 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
 
             <View style={styles.actions}>
               <AppButton
-                title={
-                  saving
-                    ? translations.saving
-                    : translations.save
-                }
-                nativeGlass
+                title={pendingAction === 'save' ? translations.saving : translations.save}
+                rightIcon="check"
+                loading={pendingAction === 'save'}
                 disabled={saving}
+                nativeGlass
                 onPress={() => void saveAccount()}
               />
 
@@ -523,6 +532,8 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
                         ? translations.archiveAccount
                         : translations.restoreAccount
                     }
+                    rightIcon={account.archivedAt === null ? 'archive' : 'restore'}
+                    loading={pendingAction === 'archive' || pendingAction === 'restore'}
                     nativeGlass
                     disabled={saving}
                     onPress={() =>
@@ -537,6 +548,8 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
                   {canDelete && (
                     <AppButton
                       title={translations.deleteAccount}
+                      rightIcon="delete"
+                      loading={pendingAction === 'delete'}
                       variant="danger"
                       nativeGlass
                       disabled={saving}
@@ -548,6 +561,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
 
               <AppButton
                 title={translations.cancel}
+                rightIcon="cancel"
                 nativeGlass
                 disabled={saving}
                 onPress={onCancel}

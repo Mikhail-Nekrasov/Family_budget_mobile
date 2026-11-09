@@ -382,6 +382,8 @@ export function CompactIconSelect({
                 <View style={styles.footer}>
                   <AppButton
                     title={translations.select}
+                    keepTitleCentered
+                    rightIcon="check"
                     nativeGlass
                     disabled={
                       disabled ||
@@ -395,6 +397,8 @@ export function CompactIconSelect({
 
                   <AppButton
                     title={translations.cancel}
+                    keepTitleCentered
+                    rightIcon="cancel"
                     nativeGlass
                     onPress={() => setExpanded(false)}
                   />

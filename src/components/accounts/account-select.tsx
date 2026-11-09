@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Keyboard,
   Pressable,
@@ -13,12 +12,16 @@ import { IconBadge } from '@/components/icons/icon-badge';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
 import { formatMoney } from '@/utils/format-money';
+import { playSelectionFeedback } from '@/utils/haptic-feedback';
 
 type AccountSelectProps = {
   accounts: readonly Account[];
   value: string | null;
   onChange: (syncId: string) => void;
   disabled?: boolean;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+  onTouchInside: () => void;
 };
 
 export function AccountSelect({
@@ -26,10 +29,12 @@ export function AccountSelect({
   value,
   onChange,
   disabled = false,
+  expanded,
+  onExpandedChange,
+  onTouchInside,
 }: AccountSelectProps) {
   const { translations, locale } = useLanguage();
   const dark = useColorScheme() === 'dark';
-  const [expanded, setExpanded] = useState(false);
 
   const palette = dark
     ? {
@@ -62,12 +67,13 @@ export function AccountSelect({
   }
 
   function selectAccount(syncId: string) {
+    if (syncId !== value) playSelectionFeedback();
     onChange(syncId);
-    setExpanded(false);
+    onExpandedChange(false);
   }
 
   return (
-    <View>
+    <View onTouchStartCapture={onTouchInside}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={
@@ -82,7 +88,7 @@ export function AccountSelect({
         disabled={disabled}
         onPress={() => {
           Keyboard.dismiss();
-          setExpanded((current) => !current);
+          onExpandedChange(!expanded);
         }}
         style={({ pressed }) => [
           styles.field,

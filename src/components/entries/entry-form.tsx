@@ -23,6 +23,7 @@ import { EntryDateTime } from '@/components/entries/entry-date-time';
 import { FieldError } from '@/components/field-error';
 import { ScreenBackground } from '@/components/screen-background';
 import { getOtherCategoryIconKey } from '@/constants/category-icons';
+import { useDismissOnOutsideTap } from '@/hooks/use-dismiss-on-outside-tap';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
@@ -46,6 +47,10 @@ import {
   isEntryDateAllowed,
   MIN_PERIOD_YEAR,
 } from '@/utils/entry-period';
+import {
+  playCompletionFeedback,
+  playSelectionFeedback
+} from '@/utils/haptic-feedback';
 import { parseAmountToMinor } from '@/utils/money';
 import { rankByRecentUsage } from '@/utils/rank-by-recent-usage';
 
@@ -103,8 +108,16 @@ export function EntryForm({
     null,
   );
 
+  const [accountExpanded, setAccountExpanded] = useState(false);
+  const { outsideTapHandlers, markInsideTouch } = useDismissOnOutsideTap(
+    accountExpanded,
+    () => setAccountExpanded(false),
+  );
+
   const [status, setStatus] = useState<LoadStatus>('loading');
-  const [saving, setSaving] = useState(false);
+  const [pendingAction, setPendingAction] =
+    useState<'save' | 'delete' | null>(null);
+  const saving = pendingAction !== null;
   const savingRef = useRef(false);
 
   const palette = dark
@@ -322,7 +335,7 @@ export function EntryForm({
     }
 
     savingRef.current = true;
-    setSaving(true);
+    setPendingAction('save');
 
     try {
       const input = {
@@ -347,9 +360,10 @@ export function EntryForm({
       return;
     } finally {
       savingRef.current = false;
-      setSaving(false);
+      setPendingAction(null);
     }
 
+    playCompletionFeedback();
     onSaved();
   }
 
@@ -359,7 +373,7 @@ export function EntryForm({
     }
 
     savingRef.current = true;
-    setSaving(true);
+    setPendingAction('delete');
 
     try {
       await deleteEntry(database, entry.syncId);
@@ -369,9 +383,10 @@ export function EntryForm({
       return;
     } finally {
       savingRef.current = false;
-      setSaving(false);
+      setPendingAction(null);
     }
 
+    playCompletionFeedback();
     onSaved();
   }
 
@@ -392,7 +407,7 @@ export function EntryForm({
 
   return (
     <ScreenBackground>
-      <SafeAreaView style={styles.screen}>
+      <SafeAreaView style={styles.screen} {...outsideTapHandlers}>
         <KeyboardAvoidingView
           style={styles.screen}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -460,6 +475,9 @@ export function EntryForm({
                 <AccountSelect
                   accounts={accounts}
                   value={accountSyncId}
+                  expanded={accountExpanded}
+                  onExpandedChange={setAccountExpanded}
+                  onTouchInside={markInsideTouch}
                   onChange={(syncId) => {
                     setAccountSyncId(syncId);
                     clearError('amount');
@@ -507,6 +525,12 @@ export function EntryForm({
                   previewValues={categoryPreviewIds}
                   value={categorySyncId}
                   onChange={(syncId) => {
+                    if (
+                      syncId !== categorySyncId &&
+                      categories.some((category) => category.syncId === syncId)
+                    ) {
+                      playSelectionFeedback();
+                    }
                     setCategorySyncId(syncId);
                     clearError('category');
                   }}
@@ -572,9 +596,11 @@ export function EntryForm({
             <View style={styles.actions}>
               {optionsAvailable && (
                 <AppButton
-                  title={translations.save}
+                  title={pendingAction === 'save' ? translations.saving : translations.save}
+                  rightIcon="check"
+                  loading={pendingAction === 'save'}
+                  disabled={saving}
                   nativeGlass
-                  loading={saving}
                   onPress={() => void saveEntry()}
                 />
               )}
@@ -582,6 +608,8 @@ export function EntryForm({
               {entry && status === 'ready' && (
                 <AppButton
                   title={translations.deleteEntry}
+                  rightIcon="delete"
+                  loading={pendingAction === 'delete'}
                   variant="danger"
                   nativeGlass
                   disabled={saving}
@@ -591,6 +619,7 @@ export function EntryForm({
 
               <AppButton
                 title={translations.cancel}
+                rightIcon="cancel"
                 nativeGlass
                 disabled={saving}
                 onPress={onCancel}

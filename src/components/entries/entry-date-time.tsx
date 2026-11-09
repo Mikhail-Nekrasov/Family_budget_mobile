@@ -252,6 +252,8 @@ export function EntryDateTime({
 
                       <AppButton
                         title={translations.now}
+                        keepTitleCentered
+                        rightIcon="clock"
                         nativeGlass
                         onPress={selectNow}
                       />
@@ -262,6 +264,8 @@ export function EntryDateTime({
                 <View style={styles.actions}>
                   <AppButton
                     title={translations.select}
+                    keepTitleCentered
+                    rightIcon="check"
                     nativeGlass
                     disabled={disabled}
                     onPress={confirmSelection}
@@ -269,6 +273,8 @@ export function EntryDateTime({
 
                   <AppButton
                     title={translations.cancel}
+                    keepTitleCentered
+                    rightIcon="cancel"
                     nativeGlass
                     onPress={closePicker}
                   />

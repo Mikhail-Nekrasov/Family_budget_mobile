@@ -337,6 +337,8 @@ const selectedMonth = Math.min(month, lastMonth);
                   <AppButton
                     key={field}
                     title={`${field === 'from' ? translations.periodFrom : translations.periodThrough}: ${formatDate(draft[field])}`}
+                    keepTitleCentered
+                    rightIcon="calendar"
                     nativeGlass
                     onPress={() => openCalendar(field)}
                   />
@@ -352,11 +354,15 @@ const selectedMonth = Math.min(month, lastMonth);
         <View style={styles.actions}>
           <AppButton
             title={stage === null ? translations.periodShow : translations.select}
+            keepTitleCentered
+            rightIcon="check"
             nativeGlass
             onPress={stage === null ? apply : selectPicker}
           />
           <AppButton
             title={translations.cancel}
+            keepTitleCentered
+            rightIcon="cancel"
             nativeGlass
             onPress={stage === null ? onCancel : () => setStage(null)}
           />

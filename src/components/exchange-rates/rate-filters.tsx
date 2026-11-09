@@ -51,12 +51,16 @@ export function RateFilters({
       />
       <AppButton
         title={`${translations.ratesBaseCurrency}: ${currency ? `${currency} · ${CURRENCY_SYMBOLS[currency]}` : translations.loading}`}
+        keepTitleCentered
+        rightIcon="dropdown"
         nativeGlass
         onPress={() => setDialog('currency')}
       />
       {historical && (
         <AppButton
           title={`${translations.entryDate}: ${dateLabel}`}
+          keepTitleCentered
+          rightIcon="calendar"
           nativeGlass
           onPress={() => {
             setDraft(new Date(date.getTime()));
@@ -115,6 +119,8 @@ export function RateFilters({
                   {dialog === 'date' && (
                     <AppButton
                       title={translations.select}
+                      keepTitleCentered
+                      rightIcon="check"
                       nativeGlass
                       onPress={() => {
                         onDateChange(new Date(draft.getTime()));
@@ -122,7 +128,13 @@ export function RateFilters({
                       }}
                     />
                   )}
-                  <AppButton title={translations.cancel} nativeGlass onPress={() => setDialog(null)} />
+                  <AppButton
+                    title={translations.cancel}
+                    keepTitleCentered
+                    rightIcon="cancel"
+                    nativeGlass
+                    onPress={() => setDialog(null)}
+                  />
                 </View>
               </SafeAreaView>
             </ScreenBackground>

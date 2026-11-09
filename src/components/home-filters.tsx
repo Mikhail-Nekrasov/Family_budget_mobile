@@ -1,4 +1,5 @@
 import { useLanguage } from '@/hooks/use-language';
+import { playSelectionFeedback } from '@/utils/haptic-feedback';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,6 +38,7 @@ export function HomeFilters({
   }
 
   function toggle(id: string) {
+    playSelectionFeedback();
     setDraft((current) => current.includes(id)
       ? current.filter((value) => value !== id)
       : [...current, id]);

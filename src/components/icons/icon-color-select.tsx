@@ -104,8 +104,21 @@ export function IconColorSelect({ palette, value, onChange, disabled = false }: 
                   ))}
                 </ScrollView>
                 <View style={styles.actions}>
-                  <AppButton title={translations.select} nativeGlass disabled={disabled} onPress={() => { onChange(pending); setExpanded(false); }} />
-                  <AppButton title={translations.cancel} nativeGlass onPress={() => setExpanded(false)} />
+                  <AppButton
+                  title={translations.select}
+                  keepTitleCentered
+                  rightIcon="check"
+                  nativeGlass
+                  disabled={disabled}
+                  onPress={() => { onChange(pending); setExpanded(false); }}
+                />
+                  <AppButton
+                    title={translations.cancel}
+                    keepTitleCentered
+                    rightIcon="cancel"
+                    nativeGlass
+                    onPress={() => setExpanded(false)}
+                  />
                 </View>
               </SafeAreaView>
             </ScreenBackground>

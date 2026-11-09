@@ -1,10 +1,10 @@
 import ExpoDateTimePicker from '@expo/ui/community/datetime-picker';
 import { useState } from 'react';
 import {
-    Platform,
-    StyleSheet,
-    useColorScheme,
-    View,
+  Platform,
+  StyleSheet,
+  useColorScheme,
+  View,
 } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
@@ -12,13 +12,13 @@ import { FieldError } from '@/components/field-error';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import {
-    fromCalendarPickerDate,
-    toCalendarPickerDate,
+  fromCalendarPickerDate,
+  toCalendarPickerDate,
 } from '@/utils/calendar-date';
 import {
-    entryDateLimits,
-    isEntryDateAllowed,
-    MIN_PERIOD_YEAR,
+  entryDateLimits,
+  isEntryDateAllowed,
+  MIN_PERIOD_YEAR,
 } from '@/utils/entry-period';
 
 type Props = {
@@ -126,6 +126,8 @@ export function AppCalendar({
 
       <AppButton
         title={translations.today}
+        keepTitleCentered
+        rightIcon="calendar"
         nativeGlass
         disabled={disabled}
         onPress={() => {
