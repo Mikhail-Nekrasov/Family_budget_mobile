@@ -17,6 +17,7 @@ import { playSelectionFeedback } from '@/utils/haptic-feedback';
 type AccountSelectProps = {
   accounts: readonly Account[];
   value: string | null;
+  label?: string;
   onChange: (syncId: string) => void;
   disabled?: boolean;
   expanded: boolean;
@@ -27,6 +28,7 @@ type AccountSelectProps = {
 export function AccountSelect({
   accounts,
   value,
+  label,
   onChange,
   disabled = false,
   expanded,
@@ -78,8 +80,8 @@ export function AccountSelect({
         accessibilityRole="button"
         accessibilityLabel={
           selectedAccount
-            ? `${translations.entryAccount}: ${selectedAccount.name}, ${selectedAccount.currencyCode}`
-            : translations.selectAccount
+            ? `${label ?? translations.entryAccount}: ${selectedAccount.name}, ${selectedAccount.currencyCode}`
+            : label ?? translations.selectAccount
         }
         accessibilityState={{
           expanded: expanded && !disabled,

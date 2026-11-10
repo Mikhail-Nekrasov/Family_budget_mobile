@@ -1,4 +1,3 @@
-import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useRef, useState } from 'react';
 import {
@@ -22,11 +21,11 @@ import { AccountForm } from '@/components/accounts/account-form';
 import { AppButton } from '@/components/app-button';
 import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
+import { TransferForm, type TransferSelection } from '@/components/transfers/transfer-form';
+import { useFocusedList } from '@/hooks/use-focused-list';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
 import { getAccounts, getArchivedAccounts, saveAccountOrder, } from '@/repositories/account-repository';
-
-type LoadStatus = 'loading' | 'ready' | 'error';
 
 type ReorderableAccountCardProps = {
   account: Account;
@@ -57,12 +56,15 @@ export default function AccountsScreen() {
   const database = useSQLiteContext();
   const { locale, translations } = useLanguage();
 
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [status, setStatus] = useState<LoadStatus>('loading');
   const [createVisible, setCreateVisible] = useState(false);
   const [editingAccount, setEditingAccount] =
     useState<Account | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [reorderMode, setReorderMode] = useState(false);
+  const [transfer, setTransfer] = useState<TransferSelection | null>(null);
+  const [listRevision, setListRevision] = useState(0);
+  const transferVisible = transfer !== null;
+  const transferSaving = useRef(false);
 
   const dark = useColorScheme() === 'dark';
 
@@ -83,41 +85,16 @@ export default function AccountsScreen() {
   const [savingOrder, setSavingOrder] = useState(false);
   const savingOrderRef = useRef(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (createVisible) {
-        return;
-      }
+  const loadAccounts = useCallback(
+    (tab: 'active' | 'archived') =>
+      tab === 'archived' ? getArchivedAccounts(database) : getAccounts(database),
+    [database],
+  );
 
-      let active = true;
-
-      async function loadAccounts() {
-        setStatus('loading');
-
-        try {
-          const result = showArchived
-            ? await getArchivedAccounts(database)
-            : await getAccounts(database);
-
-          if (active) {
-            setAccounts(result);
-            setStatus('ready');
-          }
-        } catch (error) {
-          console.warn('Failed to load accounts', error);
-
-          if (active) {
-            setStatus('error');
-          }
-        }
-      }
-
-      void loadAccounts();
-
-      return () => {
-        active = false;
-      };
-    }, [database, createVisible, showArchived]),
+  const { rows: accounts, status, setRows: setAccounts } = useFocusedList(
+    showArchived ? 'archived' : 'active',
+    loadAccounts,
+    createVisible || transferVisible,
   );
 
   async function handleReorder({
@@ -130,6 +107,17 @@ export default function AccountsScreen() {
       status !== 'ready' ||
       savingOrderRef.current
     ) {
+      return;
+    }
+
+    if (!reorderMode) {
+      const source = accounts[from];
+      const target = accounts[to];
+      if (!source || !target || source.syncId === target.syncId) return;
+
+      // The drag library rearranges its internal layout even if data is unchanged.
+      setListRevision((current) => current + 1);
+      setTransfer({ fromId: source.syncId, toId: target.syncId });
       return;
     }
 
@@ -161,6 +149,29 @@ export default function AccountsScreen() {
     }
   }
 
+  const activeAccountsReady = !showArchived && !savingOrder && status === 'ready';
+  const hasTransferAccounts = status === 'ready' && accounts.length >= 2;
+  const canTransfer = !showArchived && hasTransferAccounts;
+  const emptyList = status === 'loading' ? (
+    <ActivityIndicator
+      accessibilityLabel={translations.loading}
+      color={palette.text}
+      style={styles.loading}
+    />
+  ) : (
+    <Text style={[styles.message, { color: palette.muted }]}>
+      {status === 'error'
+        ? translations.loadAccountsError
+        : showArchived ? translations.noArchivedAccounts : translations.noAccounts}
+    </Text>
+  );
+
+  function openAccount(account: Account) {
+    if (savingOrderRef.current) return;
+    setEditingAccount(account);
+    setCreateVisible(true);
+  }
+
   return (
     <ScreenBackground>
       <SafeAreaView
@@ -172,8 +183,9 @@ export default function AccountsScreen() {
             title={translations.newAccount}
             nativeGlass
             rightSymbol="＋"
-            disabled={showArchived || savingOrder}
+            disabled={showArchived}
             onPress={() => {
+              if (savingOrderRef.current) return;
               setEditingAccount(null);
               setCreateVisible(true);
             }}
@@ -193,6 +205,7 @@ export default function AccountsScreen() {
               value={showArchived ? 'archived' : 'active'}
               onChange={(value) => {
                 if (!savingOrderRef.current) {
+                    setReorderMode(false);
                   setShowArchived(value === 'archived');
                 }
               }}
@@ -200,53 +213,67 @@ export default function AccountsScreen() {
           </View>
         </View>
         <ReorderableList
-          data={status === 'ready' ? accounts : []}
+          key={listRevision}
+          data={accounts}
           keyExtractor={(account) => account.syncId}
           contentContainerStyle={styles.content}
-          ListEmptyComponent={
-            status === 'loading' ? (
-              <ActivityIndicator
-                accessibilityLabel={translations.loading}
-                color={palette.text}
-                style={styles.loading}
-              />
-            ) : (
-              <Text
-                style={[
-                  styles.message,
-                  { color: palette.muted },
-                ]}
-              >
-                {status === 'error'
-                  ? translations.loadAccountsError
-                  : showArchived
-                    ? translations.noArchivedAccounts
-                    : translations.noAccounts}
-              </Text>
-            )
-          }
-          dragEnabled={
-            !showArchived &&
-            !savingOrder &&
-            status === 'ready'
-          }
+          ListEmptyComponent={emptyList}
+          dragEnabled={activeAccountsReady && hasTransferAccounts}
           onReorder={(event) => void handleReorder(event)}
           renderItem={({ item }) => (
             <ReorderableAccountCard
               account={item}
               locale={locale}
-              canReorder={!showArchived && !savingOrder}
-              onPress={() => {
-                if (savingOrderRef.current) {
-                  return;
-                }
-
-                setEditingAccount(item);
-                setCreateVisible(true);
-              }}
+              canReorder={activeAccountsReady && hasTransferAccounts}
+              onPress={() => openAccount(item)}
             />
           )}
         />
+        {!showArchived && (
+          <View style={styles.footer}>
+            <AppButton
+              title={translations.newTransfer}
+              nativeGlass
+              rightSymbol="⇄"
+              disabled={!canTransfer || reorderMode}
+              onPress={() => {
+                if (!savingOrderRef.current) setTransfer({ fromId: null, toId: null });
+              }}
+            />
+            {hasTransferAccounts && (
+              <AppButton
+                title={reorderMode ? translations.finishReordering : translations.reorderAccounts}
+                nativeGlass
+                rightIcon={reorderMode ? 'check' : undefined}
+                keepTitleCentered
+                onPress={() => {
+                  if (!savingOrderRef.current) setReorderMode((current) => !current);
+                }}
+              />
+            )}
+          </View>
+        )}
+        <Modal
+          visible={transferVisible}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          backdropColor={palette.background}
+          onRequestClose={() => {
+            if (!transferSaving.current) setTransfer(null);
+          }}
+        >
+          {transfer && (
+            <SafeAreaProvider>
+              <TransferForm
+                accounts={accounts}
+                initialSelection={transfer}
+                onSavingChange={(saving) => { transferSaving.current = saving; }}
+                onSaved={() => setTransfer(null)}
+                onCancel={() => setTransfer(null)}
+              />
+            </SafeAreaProvider>
+          )}
+        </Modal>
         <Modal
           visible={createVisible}
           animationType="slide"
@@ -273,6 +300,7 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  footer: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8, gap: 8 },
   content: {
     padding: 20,
     gap: 4,

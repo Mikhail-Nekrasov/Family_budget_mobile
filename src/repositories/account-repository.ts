@@ -254,6 +254,11 @@ export async function canDeleteLocalAccount(
             FROM entries
             WHERE account_sync_id = accounts.sync_id
           )
+          AND NOT EXISTS (
+            SELECT 1 FROM transfers
+            WHERE from_account_sync_id = accounts.sync_id
+               OR to_account_sync_id = accounts.sync_id
+          )
       ) AS deletable
     `,
     syncId,
@@ -278,13 +283,18 @@ export async function deleteLocalAccount(
               FROM entries
               WHERE account_sync_id = accounts.sync_id
             )
+            AND NOT EXISTS (
+              SELECT 1 FROM transfers
+              WHERE from_account_sync_id = accounts.sync_id
+                 OR to_account_sync_id = accounts.sync_id
+            )
         `,
         syncId,
       );
 
       if (result.changes !== 1) {
         throw new Error(
-          'Account cannot be deleted: it has entries, is synchronized or does not exist',
+          'Account cannot be deleted: it has operations, is synchronized or does not exist',
         );
       }
 

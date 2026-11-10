@@ -9,7 +9,7 @@ import { en } from '@/i18n/en';
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 19;
+const DATABASE_VERSION = 20;
 
 // Only used to identify the colors assigned by migration 16.
 function legacyCategoryIconColor(key: string, income: boolean): string {
@@ -431,46 +431,70 @@ export async function initializeDatabase(
       );
     }
 
+    if (currentVersion < 19) {
+      await database.execAsync(`
+        UPDATE categories
+        SET icon_key = CASE type
+          WHEN 'INCOME' THEN 'otherIncome' ELSE 'otherExpense'
+        END
+        WHERE icon_key = 'category';
+
+        UPDATE categories SET icon_key = 'rentalIncome'
+        WHERE type = 'INCOME' AND default_key = 'rentalIncome'
+          AND icon_key = 'housing';
+
+        UPDATE categories SET icon_key = 'giftsIncome'
+        WHERE type = 'INCOME' AND default_key = 'giftsIncome'
+          AND icon_key = 'gift';
+      `);
+
+      for (const definition of DEFAULT_CATEGORIES) {
+        if (definition.key !== 'otherExpense' && definition.key !== 'otherIncome') {
+          continue;
+        }
+
+        await database.runAsync(
+          `INSERT INTO categories (
+            sync_id, name, type, icon_key, default_key, sort_order, icon_color
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(type, default_key) WHERE default_key IS NOT NULL DO NOTHING`,
+          randomUUID(),
+          en.defaultCategories[definition.key],
+          definition.type,
+          definition.iconKey,
+          definition.key,
+          definition.sortOrder,
+          defaultCategoryIconColor(definition.key),
+        );
+      }
+    }
+
+    if (currentVersion < 20) {
+      await database.execAsync(`
+        CREATE TABLE transfers (
+          sync_id TEXT PRIMARY KEY NOT NULL,
+          server_id INTEGER,
+          server_version INTEGER,
+          from_account_sync_id TEXT NOT NULL
+            REFERENCES accounts(sync_id) ON DELETE RESTRICT,
+          to_account_sync_id TEXT NOT NULL
+            REFERENCES accounts(sync_id) ON DELETE RESTRICT,
+          amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),
+          target_amount_minor INTEGER NOT NULL CHECK (target_amount_minor > 0),
+          source_currency_code TEXT NOT NULL,
+          target_currency_code TEXT NOT NULL,
+          date_time TEXT NOT NULL,
+          description TEXT,
+          CHECK (from_account_sync_id <> to_account_sync_id),
+          CHECK (source_currency_code <> target_currency_code OR amount_minor = target_amount_minor)
+        );
+        CREATE INDEX idx_transfers_from_account ON transfers(from_account_sync_id);
+        CREATE INDEX idx_transfers_to_account ON transfers(to_account_sync_id);
+      `);
+    }
+
     await database.execAsync(
       `PRAGMA user_version = ${DATABASE_VERSION}`,
     );
   });
-
-  if (currentVersion < 19) {
-    await database.execAsync(`
-      UPDATE categories
-      SET icon_key = CASE type
-        WHEN 'INCOME' THEN 'otherIncome' ELSE 'otherExpense'
-      END
-      WHERE icon_key = 'category';
-
-      UPDATE categories SET icon_key = 'rentalIncome'
-      WHERE type = 'INCOME' AND default_key = 'rentalIncome'
-        AND icon_key = 'housing';
-
-      UPDATE categories SET icon_key = 'giftsIncome'
-      WHERE type = 'INCOME' AND default_key = 'giftsIncome'
-        AND icon_key = 'gift';
-    `);
-
-    for (const definition of DEFAULT_CATEGORIES) {
-      if (definition.key !== 'otherExpense' && definition.key !== 'otherIncome') {
-        continue;
-      }
-
-      await database.runAsync(
-        `INSERT INTO categories (
-          sync_id, name, type, icon_key, default_key, sort_order, icon_color
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(type, default_key) WHERE default_key IS NOT NULL DO NOTHING`,
-        randomUUID(),
-        en.defaultCategories[definition.key],
-        definition.type,
-        definition.iconKey,
-        definition.key,
-        definition.sortOrder,
-        defaultCategoryIconColor(definition.key),
-      );
-    }
-  }
 }

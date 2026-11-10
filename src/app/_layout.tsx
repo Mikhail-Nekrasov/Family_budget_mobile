@@ -63,6 +63,7 @@ function AppNavigation() {
               drawerLabel: translations.home,
               title: translations.home,
               headerShown: false,
+              lazy: false,
             }}
           />
 
@@ -72,6 +73,7 @@ function AppNavigation() {
               drawerLabel: translations.accounts,
               title: translations.accounts,
               headerShown: false,
+              lazy: false,
             }}
           />
 
@@ -81,6 +83,7 @@ function AppNavigation() {
               drawerLabel: translations.categories,
               title: translations.categories,
               headerShown: false,
+              lazy: false,
             }}
           />
 
@@ -90,6 +93,7 @@ function AppNavigation() {
               drawerLabel: translations.exchangeRates,
               title: translations.exchangeRates,
               headerShown: false,
+              lazy: false,
             }}
           />
 
@@ -99,6 +103,7 @@ function AppNavigation() {
               drawerLabel: translations.settings,
               title: translations.settings,
               headerShown: false,
+              lazy: false,
             }}
           />
         </Drawer>

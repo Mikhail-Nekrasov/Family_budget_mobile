@@ -1,4 +1,3 @@
-import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import {
@@ -20,20 +19,17 @@ import { CategoryCard } from '@/components/categories/category-card';
 import { CategoryForm } from '@/components/categories/category-form';
 import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
+import { useFocusedList } from '@/hooks/use-focused-list';
 import { useLanguage } from '@/hooks/use-language';
 import type { Category } from '@/models/category';
 import type { EntryType } from '@/models/entry-type';
 import { getCategories } from '@/repositories/category-repository';
-
-type LoadStatus = 'loading' | 'ready' | 'error';
 
 export default function CategoriesScreen() {
   const database = useSQLiteContext();
   const { translations } = useLanguage();
 
   const [type, setType] = useState<EntryType>('EXPENSE');
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [status, setStatus] = useState<LoadStatus>('loading');
   const [createVisible, setCreateVisible] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
@@ -49,38 +45,15 @@ export default function CategoriesScreen() {
         muted: '#6C7890',
       };
 
-  useFocusEffect(
-    useCallback(() => {
-      if (createVisible) {
-        return;
-      }
-      let active = true;
+  const loadCategories = useCallback(
+    (categoryType: EntryType) => getCategories(database, categoryType),
+    [database],
+  );
 
-      async function loadCategories() {
-        setStatus('loading');
-
-        try {
-          const result = await getCategories(database, type);
-
-          if (active) {
-            setCategories(result);
-            setStatus('ready');
-          }
-        } catch (error) {
-          console.warn('Failed to load categories', error);
-
-          if (active) {
-            setStatus('error');
-          }
-        }
-      }
-
-      void loadCategories();
-
-      return () => {
-        active = false;
-      };
-    }, [database, type, createVisible]),
+  const { rows: categories, status } = useFocusedList(
+    type,
+    loadCategories,
+    createVisible,
   );
 
   return (
@@ -118,7 +91,7 @@ export default function CategoriesScreen() {
         </View>
 
         <FlatList
-          data={status === 'ready' ? categories : []}
+          data={categories}
           keyExtractor={(category) => category.syncId}
           contentContainerStyle={styles.content}
           ListEmptyComponent={

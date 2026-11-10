@@ -37,6 +37,7 @@ type AppButtonProps = {
   nativeGlass?: boolean;
   variant?: 'default' | 'danger';
   keepTitleCentered?: boolean;
+  compact?: boolean;
 };
 
 export function AppButton({
@@ -47,6 +48,7 @@ export function AppButton({
   rightSymbol,
   rightIcon,
   keepTitleCentered = false,
+  compact = false,
   nativeGlass = false,
   variant = 'default',
 }: AppButtonProps) {
@@ -86,6 +88,7 @@ export function AppButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        compact && styles.compact,
         {
           opacity: unavailable ? 0.45 : pressed ? 0.75 : 1,
           transform: [
@@ -151,6 +154,7 @@ export function AppButton({
       <Text
         style={[
           styles.label,
+          compact && styles.compactLabel,
           { 
             color: palette.text,
           },
@@ -224,6 +228,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
+  compact: { paddingHorizontal: 6, paddingVertical: 6, gap: 4 },
+  compactLabel: { fontSize: 14, flexShrink: 1 },
   blur: {
     opacity: 0.35,
   },

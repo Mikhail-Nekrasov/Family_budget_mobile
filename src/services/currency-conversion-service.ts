@@ -71,6 +71,26 @@ export function roundMoneyRatio(value: MoneyRatio): bigint {
   return value.numerator < 0n ? -rounded : rounded;
 }
 
+export function convertAmountAtRate(
+  amountMinor: number,
+  sourceCurrency: string,
+  targetCurrency: string,
+  rate: number,
+): number | null {
+  if (!Number.isSafeInteger(amountMinor) || amountMinor < 0 ||
+      !Number.isFinite(rate) || rate <= 0) {
+    return null;
+  }
+
+  const [numerator, denominator] = decimalRatio(rate);
+  const rounded = roundMoneyRatio({
+    numerator: BigInt(amountMinor) * numerator * 10n ** BigInt(getFractionDigits(targetCurrency)),
+    denominator: denominator * 10n ** BigInt(getFractionDigits(sourceCurrency)),
+  });
+
+  return rounded <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(rounded) : null;
+}
+
 export function addMoneyRatios(first: MoneyRatio, second: MoneyRatio): MoneyRatio {
   const numerator = first.numerator * second.denominator +
     second.numerator * first.denominator;
