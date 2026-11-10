@@ -18,18 +18,18 @@ export const ICON_COLOR_ROWS = [
   ['#F0F1F3', '#E7E7E7', '#BFC3C8', '#7B838E', '#657084', '#424A55'],
 ] as const;
 
-// Same row order as the category palette, with cooler, muted shades. 
-// The idea was not to confuse the user with the same colors for accounts and categories, but still have a visual connection between them.
+// Keep the same color families as the category palette, with separate swatches.
+// Each family steps down in perceptual lightness.
 export const ACCOUNT_ICON_COLOR_ROWS = [
-  ['#E4D3D2', '#CFB1AF', '#BC928F', '#A76F6C', '#895552', '#69413F'],
-  ['#E4DAD2', '#CFBDAF', '#BCA28F', '#A7856C', '#896952', '#69513F'],
-  ['#E4DFD3', '#CFC6B0', '#BBAF90', '#A6966E', '#887953', '#685D40'],
-  ['#D3E4D6', '#B1CEB6', '#91BA99', '#6FA579', '#54875E', '#416848'],
-  ['#D3E3E4', '#B1CCCE', '#91B8BA', '#6FA2A5', '#548487', '#416668'],
-  ['#D3D8E4', '#B0B9CF', '#909DBB', '#6E7EA6', '#536388', '#404C68'],
-  ['#DCD3E3', '#C0B1CD', '#A792B9', '#8B70A4', '#6F5686', '#554267'],
-  ['#E4D3DB', '#CFB0BF', '#BB90A6', '#A66E8A', '#88536E', '#684054'],
-  ['#D9DADD', '#BBBDC3', '#A0A3AB', '#838691', '#676A74', '#4F5259'],
+  ['#FEC9C1', '#FD9C90', '#F97163', '#E25146', '#BF3F35', '#992B24'],
+  ['#FECCA8', '#F9A462', '#EA8324', '#CC6C01', '#A95A07', '#844505'],
+  ['#F2D48E', '#DDB54C', '#C69B12', '#A98309', '#8D6D00', '#6E5401'],
+  ['#ADE9B4', '#7DD18A', '#4EBC65', '#1EA447', '#078936', '#056B29'],
+  ['#8EEBE2', '#3DD4C9', '#06BAB0', '#129D95', '#06837C', '#056660'],
+  ['#BBDBFE', '#86BFFD', '#4EA6FD', '#078BF1', '#0C73C8', '#00599F'],
+  ['#D9D0FE', '#BEACFD', '#A88AFD', '#926DEB', '#7958C7', '#5F42A1'],
+  ['#FEC2ED', '#F098D9', '#E075C6', '#C858AF', '#A94593', '#873174'],
+  ['#CDD9E7', '#ADBCCF', '#91A4B9', '#778BA2', '#627387', '#4B5A6B'],
 ] as const;
 
 export const DEFAULT_ACCOUNT_ICON_COLOR = ACCOUNT_ICON_COLOR_ROWS[5][4];

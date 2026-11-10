@@ -26,7 +26,7 @@ import {
 type Props = {
   visible: boolean;
   value: EntryPeriod;
-  type: EntryType;
+  type: EntryType | 'TRANSFER';
   onApply: (period: EntryPeriod) => void;
   onCancel: () => void;
 };
@@ -292,7 +292,9 @@ const selectedMonth = Math.min(month, lastMonth);
         ) : (
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             <Text style={[styles.description, { color: palette.text }]}>
-              {type === 'EXPENSE' ? translations.periodExpensesFor : translations.periodIncomeFor}
+              {type === 'TRANSFER'
+                ? translations.periodTransfersFor
+                : type === 'EXPENSE' ? translations.periodExpensesFor : translations.periodIncomeFor}
             </Text>
             {modes.map((mode) => (
               <Pressable

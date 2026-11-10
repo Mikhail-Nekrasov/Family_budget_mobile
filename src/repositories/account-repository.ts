@@ -12,11 +12,12 @@ export type CreateAccountInput = {
   iconKey: string;
   iconColor: string | null;
   openingBalanceMinor: number;
+  isHidden: Account['isHidden'];
 };
 
 export type UpdateAccountInput = Pick<
   Account,
-  'name' | 'description' | 'iconKey' | 'iconColor'
+  'name' | 'description' | 'iconKey' | 'iconColor' | 'isHidden'
 >;
 
 const ACCOUNT_COLUMNS = `
@@ -30,7 +31,8 @@ const ACCOUNT_COLUMNS = `
   icon_color AS iconColor,
   opening_balance_minor AS openingBalanceMinor,
   balance_minor AS balanceMinor,
-  archived_at AS archivedAt
+  archived_at AS archivedAt,
+  is_hidden AS isHidden
 `;
 
 export async function getAccounts(
@@ -105,6 +107,7 @@ export async function createAccount(
     balanceMinor: input.openingBalanceMinor,
 
     archivedAt: null,
+    isHidden: input.isHidden,
   };
 
   await database.withExclusiveTransactionAsync(
@@ -121,9 +124,10 @@ export async function createAccount(
             icon_key,
             icon_color,
             opening_balance_minor,
-            balance_minor
+            balance_minor,
+            is_hidden
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         account.syncId,
         account.serverId,
@@ -135,6 +139,7 @@ export async function createAccount(
         account.iconColor,
         account.openingBalanceMinor,
         account.balanceMinor,
+        account.isHidden,
       );
 
       await transaction.runAsync(
@@ -182,13 +187,15 @@ export async function updateAccount(
         name = ?,
         description = ?,
         icon_key = ?,
-        icon_color = ?
+        icon_color = ?,
+        is_hidden = ?
       WHERE sync_id = ?
     `,
     name,
     description,
     input.iconKey,
     input.iconColor?.toUpperCase() ?? null,
+    input.isHidden,
     syncId,
   );
 

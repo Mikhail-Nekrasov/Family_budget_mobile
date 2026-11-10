@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
+import { AccountOverviewButton } from '@/components/accounts/account-overview-button';
 import { MenuButton } from '@/components/menu-button';
 import { useLanguage } from '@/hooks/use-language';
 
@@ -26,6 +27,14 @@ export default function AccountsLayout() {
         options={{
           title: translations.accounts,
           headerLeft: () => <MenuButton />,
+          headerRight: () => <AccountOverviewButton />,
+          unstable_headerRightItems: () => [
+            {
+              type: 'custom',
+              element: <AccountOverviewButton />,
+              hidesSharedBackground: true,
+            },
+          ],
           unstable_headerLeftItems: () => [
             {
               type: 'custom',
@@ -33,6 +42,22 @@ export default function AccountsLayout() {
               hidesSharedBackground: true,
             },
           ],
+        }}
+      />
+      <Stack.Screen
+        name="transfer-history"
+        options={{
+          title: translations.transferHistory,
+          headerBackButtonDisplayMode: 'minimal',
+        }}
+      />
+      <Stack.Screen
+        name="overview"
+        options={{
+          title: translations.accountOverview,
+          headerTransparent: true,
+          headerShadowVisible: true,
+          headerBackButtonDisplayMode: 'minimal',
         }}
       />
     </Stack>

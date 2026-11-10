@@ -9,7 +9,20 @@ import { en } from '@/i18n/en';
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 20;
+const DATABASE_VERSION = 22;
+
+// The original account palette is needed for both color migrations.
+const LEGACY_ACCOUNT_ICON_COLOR_ROWS = [
+  ['#E4D3D2', '#CFB1AF', '#BC928F', '#A76F6C', '#895552', '#69413F'],
+  ['#E4DAD2', '#CFBDAF', '#BCA28F', '#A7856C', '#896952', '#69513F'],
+  ['#E4DFD3', '#CFC6B0', '#BBAF90', '#A6966E', '#887953', '#685D40'],
+  ['#D3E4D6', '#B1CEB6', '#91BA99', '#6FA579', '#54875E', '#416848'],
+  ['#D3E3E4', '#B1CCCE', '#91B8BA', '#6FA2A5', '#548487', '#416668'],
+  ['#D3D8E4', '#B0B9CF', '#909DBB', '#6E7EA6', '#536388', '#404C68'],
+  ['#DCD3E3', '#C0B1CD', '#A792B9', '#8B70A4', '#6F5686', '#554267'],
+  ['#E4D3DB', '#CFB0BF', '#BB90A6', '#A66E8A', '#88536E', '#684054'],
+  ['#D9DADD', '#BBBDC3', '#A0A3AB', '#838691', '#676A74', '#4F5259'],
+] as const;
 
 // Only used to identify the colors assigned by migration 16.
 function legacyCategoryIconColor(key: string, income: boolean): string {
@@ -405,19 +418,19 @@ export async function initializeDatabase(
       const colorPairs: [string, string][] = ICON_COLOR_ROWS.flatMap(
         (row, rowIndex) => row.map((color, columnIndex): [string, string] => [
           color,
-          ACCOUNT_ICON_COLOR_ROWS[rowIndex][columnIndex],
+          LEGACY_ACCOUNT_ICON_COLOR_ROWS[rowIndex][columnIndex],
         ]),
       );
       // These swatches were removed from the shared palette in version 17.
       colorPairs.push(
-        ['#F9DFCC', ACCOUNT_ICON_COLOR_ROWS[1][1]],
-        ['#DC9557', ACCOUNT_ICON_COLOR_ROWS[1][3]],
-        ['#C47C36', ACCOUNT_ICON_COLOR_ROWS[1][4]],
-        ['#805024', ACCOUNT_ICON_COLOR_ROWS[1][5]],
-        ['#F3BE87', ACCOUNT_ICON_COLOR_ROWS[1][2]],
-        ['#E9C96D', ACCOUNT_ICON_COLOR_ROWS[2][2]],
-        ['#CAA044', ACCOUNT_ICON_COLOR_ROWS[2][3]],
-        ['#73364D', ACCOUNT_ICON_COLOR_ROWS[7][5]],
+        ['#F9DFCC', LEGACY_ACCOUNT_ICON_COLOR_ROWS[1][1]],
+        ['#DC9557', LEGACY_ACCOUNT_ICON_COLOR_ROWS[1][3]],
+        ['#C47C36', LEGACY_ACCOUNT_ICON_COLOR_ROWS[1][4]],
+        ['#805024', LEGACY_ACCOUNT_ICON_COLOR_ROWS[1][5]],
+        ['#F3BE87', LEGACY_ACCOUNT_ICON_COLOR_ROWS[1][2]],
+        ['#E9C96D', LEGACY_ACCOUNT_ICON_COLOR_ROWS[2][2]],
+        ['#CAA044', LEGACY_ACCOUNT_ICON_COLOR_ROWS[2][3]],
+        ['#73364D', LEGACY_ACCOUNT_ICON_COLOR_ROWS[7][5]],
       );
 
       const cases = colorPairs.map(() => 'WHEN ? THEN ?').join(' ');
@@ -491,6 +504,31 @@ export async function initializeDatabase(
         CREATE INDEX idx_transfers_from_account ON transfers(from_account_sync_id);
         CREATE INDEX idx_transfers_to_account ON transfers(to_account_sync_id);
       `);
+    }
+
+    if (currentVersion < 21) {
+      await database.execAsync(`
+        ALTER TABLE accounts
+        ADD COLUMN is_hidden INTEGER NOT NULL DEFAULT 0 CHECK (is_hidden IN (0, 1));
+      `);
+    }
+
+    if (currentVersion < 22) {
+      const colorPairs = LEGACY_ACCOUNT_ICON_COLOR_ROWS.flatMap(
+        (row, rowIndex) => row.map((color, columnIndex) => [
+          color,
+          ACCOUNT_ICON_COLOR_ROWS[rowIndex][columnIndex],
+        ] as const),
+      );
+      const cases = colorPairs.map(() => 'WHEN ? THEN ?').join(' ');
+      const placeholders = colorPairs.map(() => '?').join(', ');
+      await database.runAsync(
+        `UPDATE accounts
+         SET icon_color = CASE UPPER(icon_color) ${cases} END
+         WHERE UPPER(icon_color) IN (${placeholders})`,
+        ...colorPairs.flat(),
+        ...colorPairs.map(([oldColor]) => oldColor),
+      );
     }
 
     await database.execAsync(

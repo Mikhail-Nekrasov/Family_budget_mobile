@@ -5,9 +5,10 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
   type GestureResponderEvent,
 } from 'react-native';
-import Svg, { Circle, Defs, Pattern } from 'react-native-svg';
+import Svg, { Circle, Defs, G, Pattern } from 'react-native-svg';
 
 import { formatMoney } from '@/utils/format-money';
 import { playSelectionFeedback } from '@/utils/haptic-feedback';
@@ -29,17 +30,25 @@ type Props = {
   size?: number;
   available?: boolean;
   loading?: boolean;
+  totalAmountMinor?: number;
 };
 
-export function CategoryChart({ segments, label, currencyCode, textColor, mutedColor, trackColor, size = 240, available = true, loading = false }: Props) {
+const NEGATIVE_SECTOR_COLOR = '#FF173E';
+const AMOUNT_FONT_SIZE = 25;
+
+export function CategoryChart({ segments, label, currencyCode, textColor, mutedColor, trackColor, size = 240, available = true, loading = false, totalAmountMinor }: Props) {
   const { locale, translations } = useLanguage();
+  const { fontScale } = useWindowDimensions();
+  const amountHeight = Math.ceil(32 * fontScale);
+  const amountOffset = AMOUNT_FONT_SIZE * fontScale / 2;
+  const labelGap = 6;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const dotPatternId = `category-dots-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
 
   const total = segments.reduce(
-    (sum, segment) => sum + segment.amountMinor,
+    (sum, segment) => sum + Math.abs(segment.amountMinor),
     0,
   );
 
@@ -50,7 +59,7 @@ export function CategoryChart({ segments, label, currencyCode, textColor, mutedC
 
   const shownLabel = selectedSegment?.name ?? label;
   const shownAmount = formatMoney(
-    selectedSegment?.amountMinor ?? total,
+    selectedSegment?.amountMinor ?? totalAmountMinor ?? total,
     currencyCode,
     locale,
   );
@@ -63,7 +72,7 @@ export function CategoryChart({ segments, label, currencyCode, textColor, mutedC
 
   for (const segment of segments) {
     const start = accumulated;
-    accumulated += segment.amountMinor;
+    accumulated += Math.abs(segment.amountMinor);
     sectorRanges.push({ segment, start, end: accumulated });
   }
 
@@ -77,7 +86,7 @@ export function CategoryChart({ segments, label, currencyCode, textColor, mutedC
     : 0;
 
   const isShifted = selectedRange !== undefined &&
-    selectedRange.segment.amountMinor < total;
+    Math.abs(selectedRange.segment.amountMinor) < total;
 
   const shiftX = isShifted ? Math.cos(midpoint) * shift : 0;
   const shiftY = isShifted ? Math.sin(midpoint) * shift : 0;
@@ -172,12 +181,45 @@ export function CategoryChart({ segments, label, currencyCode, textColor, mutedC
           )}
 
           {canSelect && sectorsToDraw.map(({ segment, start }) => {
-            const length = segment.amountMinor / total * circumference;
+            const weight = Math.abs(segment.amountMinor);
+            const length = weight / total * circumference;
             const offset = start / total * circumference;
-            const isFullCircle = segment.amountMinor === total;
+            const isFullCircle = weight === total;
             const isSelected = selectedSegment?.id === segment.id;
             const centerX = 100 + (isSelected ? shiftX : 0);
             const centerY = 100 + (isSelected ? shiftY : 0);
+
+            const opacity = !selectedSegment || isSelected ? 1 : 0.45;
+            if (segment.amountMinor < 0) {
+              return (
+                <G key={segment.id} opacity={opacity}>
+                  {[
+                    { key: 'outer', bandRadius: radius + ringWidth / 4, color: NEGATIVE_SECTOR_COLOR },
+                    { key: 'inner', bandRadius: radius - ringWidth / 4, color: segment.color ?? `url(#${dotPatternId})` },
+                  ].map(({ key, bandRadius, color }) => {
+                    const bandCircumference = 2 * Math.PI * bandRadius;
+                    const bandLength = weight / total * bandCircumference;
+
+                    return (
+                      <Circle
+                        key={key}
+                        cx={centerX}
+                        cy={centerY}
+                        r={bandRadius}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth={ringWidth / 2}
+                        strokeDasharray={isFullCircle ? undefined : [bandLength, bandCircumference - bandLength]}
+                        strokeDashoffset={-start / total * bandCircumference}
+                        rotation={-90}
+                        originX={centerX}
+                        originY={centerY}
+                      />
+                    );
+                  })}
+                </G>
+              );
+            }
 
             return (
               <Circle
@@ -188,7 +230,7 @@ export function CategoryChart({ segments, label, currencyCode, textColor, mutedC
                 fill="none"
                 stroke={segment.color ?? `url(#${dotPatternId})`}
                 strokeWidth={ringWidth}
-                strokeOpacity={!selectedSegment || isSelected ? 1 : 0.45}
+                strokeOpacity={opacity}
                 strokeDasharray={isFullCircle ? undefined : [length, circumference - length]}
                 strokeDashoffset={-offset}
                 rotation={-90}
@@ -199,19 +241,27 @@ export function CategoryChart({ segments, label, currencyCode, textColor, mutedC
           })}
         </Svg>
         <View style={styles.center} pointerEvents="none">
-          <Text numberOfLines={2} style={[styles.label, { color: mutedColor }]}>
+          <Text
+            numberOfLines={2}
+            style={[
+              styles.label,
+              { color: mutedColor, marginBottom: amountHeight / 1.5 + labelGap - amountOffset },
+            ]}
+          >
             {shownLabel}
           </Text>
-          <Text
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.55}
-            style={[styles.total, { color: textColor }]}
-          >
-            {available ? shownAmount : '—'}
-          </Text>
+          <View style={[styles.amountSlot, { height: amountHeight, marginTop: amountOffset - amountHeight / 1.5 }]}>
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.55}
+              style={[styles.total, { color: textColor }]}
+            >
+              {available ? shownAmount : '—'}
+            </Text>
+          </View>
           {!available && (
-            <Text style={[styles.notice, { color: mutedColor }]}>
+            <Text style={[styles.notice, { color: mutedColor, marginTop: amountOffset + amountHeight / 2 + labelGap }]}>
               {loading ? translations.loading : translations.conversionUnavailable}
             </Text>
           )}
@@ -239,8 +289,29 @@ const styles = StyleSheet.create({
   chart: {
     position: 'relative'
   },
-  center: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, justifyContent: 'center', alignItems: 'center', paddingHorizontal: '17%', gap: 8 },
-  notice: { fontSize: 12, textAlign: 'center' },
-  label: { fontSize: 13, textAlign: 'center' },
-  total: { fontSize: 25, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  center: { ...StyleSheet.absoluteFill, left: '17%', right: '17%' },
+  amountSlot: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    right: 0,
+    justifyContent: 'center',
+  },
+  notice: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    right: 0,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  label: {
+    position: 'absolute',
+    bottom: '50%',
+    left: 0,
+    right: 0,
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  total: { textAlign: 'center', fontSize: AMOUNT_FONT_SIZE, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });

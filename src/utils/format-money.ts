@@ -28,3 +28,14 @@ export function formatMoney(
 
   return `${formattedAmount}\u00A0${getCurrencySymbol(currencyCode)}`;
 }
+
+
+export function formatExchangeRate(
+  rate: number,
+  sourceCurrencyCode: string,
+  targetCurrencyCode: string,
+  locale: string,
+): string {
+  const value = new Intl.NumberFormat(locale, { maximumSignificantDigits: 8 }).format(rate);
+  return `1 ${getCurrencySymbol(sourceCurrencyCode)} = ${value} ${getCurrencySymbol(targetCurrencyCode)}`;
+}

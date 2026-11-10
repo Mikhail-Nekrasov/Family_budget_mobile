@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,9 +11,10 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
 import { AppCalendar } from '@/components/calendar/app-calendar';
+import { CurrencyPickerButton } from '@/components/currency-picker-button';
 import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
-import { CURRENCY_CODES, CURRENCY_SYMBOLS, type CurrencyCode } from '@/constants/currencies';
+import type { CurrencyCode } from '@/constants/currencies';
 import { useLanguage } from '@/hooks/use-language';
 import { formatCalendarDate } from '@/utils/calendar-date';
 
@@ -32,11 +32,11 @@ export function RateFilters({
 }: Props) {
   const { translations, locale } = useLanguage();
   const dark = useColorScheme() === 'dark';
-  const [dialog, setDialog] = useState<'currency' | 'date' | null>(null);
+  const [dateVisible, setDateVisible] = useState(false);
   const [draft, setDraft] = useState(date);
   const palette = dark
-    ? { background: '#111722', card: '#1C2432', text: '#F0F3FA', border: '#333F52', accent: '#A0B8FF' }
-    : { background: '#F5F6F9', card: '#FFFFFF', text: '#192238', border: '#E0E5EE', accent: '#365BBC' };
+    ? { background: '#111722', text: '#F0F3FA' }
+    : { background: '#F5F6F9', text: '#192238' };
   const dateLabel = formatCalendarDate(date, locale);
 
   return (
@@ -49,12 +49,10 @@ export function RateFilters({
         value={historical ? 'historical' : 'current'}
         onChange={(value) => onHistoricalChange(value === 'historical')}
       />
-      <AppButton
-        title={`${translations.ratesBaseCurrency}: ${currency ? `${currency} · ${CURRENCY_SYMBOLS[currency]}` : translations.loading}`}
-        keepTitleCentered
-        rightIcon="dropdown"
-        nativeGlass
-        onPress={() => setDialog('currency')}
+      <CurrencyPickerButton
+        label={translations.ratesBaseCurrency}
+        currency={currency}
+        onCurrencyChange={onCurrencyChange}
       />
       {historical && (
         <AppButton
@@ -64,76 +62,44 @@ export function RateFilters({
           nativeGlass
           onPress={() => {
             setDraft(new Date(date.getTime()));
-            setDialog('date');
+            setDateVisible(true);
           }}
         />
       )}
       <Modal
-        visible={dialog !== null}
+        visible={dateVisible}
         animationType="slide"
         presentationStyle="fullScreen"
         backdropColor={palette.background}
-        onRequestClose={() => setDialog(null)}
+        onRequestClose={() => setDateVisible(false)}
       >
-        {dialog !== null && (
+        {dateVisible && (
           <SafeAreaProvider style={[styles.screen, { backgroundColor: palette.background }]}>
             <ScreenBackground>
               <SafeAreaView style={styles.screen}>
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                   <Text style={[styles.title, { color: palette.text }]}>
-                    {dialog === 'currency' ? translations.ratesBaseCurrency : translations.entryDate}
+                    {translations.entryDate}
                   </Text>
-                  {dialog === 'currency' ? CURRENCY_CODES.map((code) => (
-                    <Pressable
-                      key={code}
-                      accessibilityRole="radio"
-                      accessibilityState={{ checked: currency === code }}
-                      onPress={() => {
-                        onCurrencyChange(code);
-                        setDialog(null);
-                      }}
-                      style={({ pressed }) => [
-                        styles.option,
-                        {
-                          backgroundColor: palette.card,
-                          borderColor: currency === code ? palette.accent : palette.border,
-                          opacity: pressed ? 0.75 : 1,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.label, { color: palette.text }]}>
-                        {code} · {CURRENCY_SYMBOLS[code]}
-                      </Text>
-                      <Text style={{ color: palette.accent }}>
-                        {currency === code ? '✓' : ''}
-                      </Text>
-                    </Pressable>
-                  )) : (
-                    <AppCalendar
-                      value={draft}
-                      onChange={setDraft}
-                    />
-                  )}
+                  <AppCalendar value={draft} onChange={setDraft} />
                 </ScrollView>
                 <View style={styles.actions}>
-                  {dialog === 'date' && (
-                    <AppButton
-                      title={translations.select}
-                      keepTitleCentered
-                      rightIcon="check"
-                      nativeGlass
-                      onPress={() => {
-                        onDateChange(new Date(draft.getTime()));
-                        setDialog(null);
-                      }}
-                    />
-                  )}
+                  <AppButton
+                    title={translations.select}
+                    keepTitleCentered
+                    rightIcon="check"
+                    nativeGlass
+                    onPress={() => {
+                      onDateChange(new Date(draft.getTime()));
+                      setDateVisible(false);
+                    }}
+                  />
                   <AppButton
                     title={translations.cancel}
                     keepTitleCentered
                     rightIcon="cancel"
                     nativeGlass
-                    onPress={() => setDialog(null)}
+                    onPress={() => setDateVisible(false)}
                   />
                 </View>
               </SafeAreaView>
@@ -157,22 +123,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     marginBottom: 8,
-  },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 56,
-    padding: 16,
-    borderWidth: 1,
-    borderRadius: 16,
-  },
-  label: {
-    fontSize: 16,
-  },
-  pickerPanel: {
-    padding: 8,
-    borderRadius: 16,
   },
   actions: {
     padding: 20,

@@ -1,3 +1,4 @@
+import { ActionIcon, type ActionIconName } from '@/components/icons/action-icon';
 import { BlurView } from 'expo-blur';
 import {
   GlassView,
@@ -13,19 +14,7 @@ import {
   useColorScheme,
   View
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 
-const ACTION_ICON_PATHS = {
-  check: 'M5 12l4 4L19 6',
-  cancel: 'M19 12H5m6-6-6 6 6 6',
-  delete: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7',
-  archive: 'M3 4h18v5H3zM5 9v11h14V9M10 13h4',
-  restore: 'M8 5l-4 4 4 4M4 9h11a5 5 0 0 1 0 10h-4',
-  calendar: 'M4 6h16v14H4zM4 10h16M8 4v4m8-4v4',
-  clock: 'M12 3a9 9 0 1 1 0 18 9 9 0 1 1 0-18zM12 7v5l3 2',
-  refresh: 'M20 10a8 8 0 0 0-14-4L4 8m0-5v5h5m-5 6a8 8 0 0 0 14 4l2-2m0 5v-5h-5',
-  dropdown: 'm6 9 6 6 6-6',
-} as const;
 
 type AppButtonProps = {
   title: string;
@@ -33,11 +22,13 @@ type AppButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   rightSymbol?: string;
-  rightIcon?: keyof typeof ACTION_ICON_PATHS;
+  rightIcon?: ActionIconName;
   nativeGlass?: boolean;
   variant?: 'default' | 'danger';
   keepTitleCentered?: boolean;
   compact?: boolean;
+  iconOnly?: boolean;
+  titleOffsetX?: number;
 };
 
 export function AppButton({
@@ -49,8 +40,10 @@ export function AppButton({
   rightIcon,
   keepTitleCentered = false,
   compact = false,
+  iconOnly = false,
   nativeGlass = false,
   variant = 'default',
+  titleOffsetX = 0,
 }: AppButtonProps) {
   const dark = useColorScheme() === 'dark';
   const unavailable = disabled || loading;
@@ -89,6 +82,7 @@ export function AppButton({
       style={({ pressed }) => [
         styles.button,
         compact && styles.compact,
+        iconOnly && styles.iconOnly,
         {
           opacity: unavailable ? 0.45 : pressed ? 0.75 : 1,
           transform: [
@@ -144,26 +138,29 @@ export function AppButton({
         </>
       )}
 
-      {loading && (
+      {loading && !iconOnly && (
         <ActivityIndicator
           color={palette.text}
           size="small"
         />
       )}
 
-      <Text
-        style={[
-          styles.label,
-          compact && styles.compactLabel,
-          { 
-            color: palette.text,
-          },
-        ]}
-      >
-        {title}
-      </Text>
+      {!iconOnly && (
+        <Text
+          style={[
+            styles.label,
+            compact && styles.compactLabel,
+            {
+              color: palette.text,
+              transform: [{ translateX: titleOffsetX }],
+            },
+          ]}
+        >
+          {title}
+        </Text>
+      )}
 
-      {rightIcon && !keepTitleCentered && (
+      {rightIcon && !iconOnly && !keepTitleCentered && (
         <View pointerEvents="none" style={styles.actionIconSpacer} />
       )}
 
@@ -172,26 +169,17 @@ export function AppButton({
           pointerEvents="none"
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={styles.actionIcon}
+          style={!iconOnly && styles.actionIcon}
         >
           {loading ? (
             <ActivityIndicator color={palette.text} size="small" />
           ) : (
-            <Svg width={20} height={20} viewBox="0 0 24 24">
-              <Path
-                d={ACTION_ICON_PATHS[rightIcon]}
-                fill="none"
-                stroke={palette.text}
-                strokeWidth={1.8}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
+            <ActionIcon name={rightIcon} color={palette.text} />
           )}
         </View>
       )}
 
-      {rightSymbol && (
+      {rightSymbol && !iconOnly && (
         <View
             pointerEvents="none"
             style={[
@@ -228,6 +216,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
+  iconOnly: { width: 48, height: 48, padding: 0, paddingHorizontal: 0, paddingVertical: 0 },
   compact: { paddingHorizontal: 6, paddingVertical: 6, gap: 4 },
   compactLabel: { fontSize: 14, flexShrink: 1 },
   blur: {

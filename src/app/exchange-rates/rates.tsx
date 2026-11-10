@@ -26,7 +26,7 @@ export default function ExchangeRatesScreen() {
   const currency = selectedCurrency ?? primaryCurrency;
   const preferencesFailed = preferencesStatus === 'error';
   const [historical, setHistorical] = useState(false);
-  const [date, setDate] = useState(() => new Date());
+  const [date, setDate] = useState(() => new Date(new Date().getFullYear(), 0, 1));
   const { data, loading, failed, online, refresh, localReady } = useExchangeRateList(
     historical ? localDateKey(date) : null,
   );

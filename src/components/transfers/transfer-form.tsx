@@ -1,6 +1,7 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRef, useState } from 'react';
 import {
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -22,32 +23,27 @@ import { useDismissOnOutsideTap } from '@/hooks/use-dismiss-on-outside-tap';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
-import { createTransfer } from '@/repositories/transfer-repository';
+import type { TransferHistoryItem } from '@/models/transfer';
+import { createTransfer, deleteTransfer, updateTransfer } from '@/repositories/transfer-repository';
 import { convertAmountAtRate } from '@/services/currency-conversion-service';
 import { buildRateListRows, readRateList } from '@/services/exchange-rate-list-service';
 import { isEntryDateAllowed, MIN_PERIOD_YEAR } from '@/utils/entry-period';
 import { playCompletionFeedback } from '@/utils/haptic-feedback';
-import { parseAmountToMinor } from '@/utils/money';
+import { currencyFractionDigits, parseAmountToMinor, rateFromAmounts } from '@/utils/money';
 
 export type TransferSelection = { fromId: string | null; toId: string | null };
 
 type Props = {
   accounts: readonly Account[];
   initialSelection: TransferSelection;
+  transfer?: TransferHistoryItem;
   onSavingChange: (saving: boolean) => void;
-  onSaved: () => void;
+  onSaved: () => void | Promise<void>;
   onCancel: () => void;
 };
 
-function fractionDigits(currency: string) {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency,
-  }).resolvedOptions().maximumFractionDigits ?? 2;
-}
-
 function parseTransferAmount(value: string, currency: string) {
-  const amount = parseAmountToMinor(value, fractionDigits(currency));
+  const amount = parseAmountToMinor(value, currencyFractionDigits(currency));
   return amount !== null && amount > 0 ? amount : null;
 }
 
@@ -67,25 +63,31 @@ function formatRate(value: number): string {
 }
 
 function formatMinorForInput(value: number, currency: string): string {
-  const digits = fractionDigits(currency);
+  const digits = currencyFractionDigits(currency);
   const text = String(value).padStart(digits + 1, '0');
   return digits === 0 ? text : `${text.slice(0, -digits)}.${text.slice(-digits)}`;
 }
 
-export function TransferForm({ accounts, initialSelection, onSavingChange, onSaved, onCancel }: Props) {
+export function TransferForm({ accounts, initialSelection, transfer, onSavingChange, onSaved, onCancel }: Props) {
   const database = useSQLiteContext();
   const { translations } = useLanguage();
   const dark = useColorScheme() === 'dark';
   const [selection, setSelection] = useState(initialSelection);
   const [expanded, setExpanded] = useState<keyof TransferSelection | null>(null);
-  const [amount, setAmount] = useState('');
-  const [quote, setQuote] = useState<{ field: 'target' | 'rate'; value: string }>({ field: 'target', value: '' });
+  const [amount, setAmount] = useState(() => transfer
+    ? formatMinorForInput(transfer.amountMinor, transfer.sourceCurrencyCode)
+    : '');
+  const [quote, setQuote] = useState<{ field: 'target' | 'rate'; value: string }>(() => ({
+    field: 'target',
+    value: transfer ? formatMinorForInput(transfer.targetAmountMinor, transfer.targetCurrencyCode) : '',
+  }));
   const [loadingRate, setLoadingRate] = useState(false);
   const rateRequest = useRef(0);
   const fetchingRate = useRef(false);
-  const [description, setDescription] = useState('');
-  const [dateTime, setDateTime] = useState(() => new Date());
-  const [saving, setSaving] = useState(false);
+  const [description, setDescription] = useState(transfer?.description ?? '');
+  const [dateTime, setDateTime] = useState(() => transfer ? new Date(transfer.dateTime) : new Date());
+  const [pendingAction, setPendingAction] = useState<'save' | 'delete' | null>(null);
+  const saving = pendingAction !== null;
   const savingRef = useRef(false);
   const { errors, showFieldError, clearError, showFormError } =
     useFormErrors<'accounts' | 'amount' | 'targetAmount' | 'rate'>();
@@ -110,7 +112,7 @@ export function TransferForm({ accounts, initialSelection, onSavingChange, onSav
   const rate = quote.field === 'rate' ? quote.value
     : from && to && amountMinor !== null && targetAmountMinor !== null
       ? formatRate(
-        targetAmountMinor / amountMinor * 10 ** (fractionDigits(from.currencyCode) - fractionDigits(to.currencyCode)),
+        rateFromAmounts(amountMinor, from.currencyCode, targetAmountMinor, to.currencyCode),
       )
       : '';
 
@@ -180,27 +182,56 @@ export function TransferForm({ accounts, initialSelection, onSavingChange, onSav
       return;
     }
 
+    const input = {
+      fromAccountSyncId: from.syncId,
+      toAccountSyncId: to.syncId,
+      amountMinor, targetAmountMinor, dateTime, description,
+    };
+
+    await mutate('save', () => transfer
+      ? updateTransfer(database, transfer.syncId, input)
+      : createTransfer(database, input));
+  }
+
+  async function mutate(action: 'save' | 'delete', run: () => Promise<void>) {
+    if (savingRef.current || fetchingRate.current) return;
+
     savingRef.current = true;
     onSavingChange(true);
     setExpanded(null);
-    setSaving(true);
+    setPendingAction(action);
+
     try {
-      await createTransfer(database, {
-        fromAccountSyncId: from.syncId, toAccountSyncId: to.syncId,
-        amountMinor, targetAmountMinor, dateTime, description,
-      });
-    } catch (error) {
-      console.warn('Failed to save transfer', error);
-      showFormError(translations.saveTransferError);
-      return;
+      try {
+        await run();
+      } catch (error) {
+        console.warn('Failed to change transfer', error);
+        showFormError(action === 'delete' ? translations.deleteTransferError : translations.saveTransferError);
+        return;
+      }
+
+      playCompletionFeedback();
+      await onSaved();
     } finally {
       savingRef.current = false;
       onSavingChange(false);
-      setSaving(false);
+      setPendingAction(null);
     }
+  }
 
-    playCompletionFeedback();
-    onSaved();
+  function confirmDelete() {
+    if (!transfer || savingRef.current || fetchingRate.current) return;
+
+    Keyboard.dismiss();
+    setExpanded(null);
+    Alert.alert('', translations.deleteTransferConfirmation, [
+      { text: translations.cancel, style: 'cancel' },
+      {
+        text: translations.deleteTransfer,
+        style: 'destructive',
+        onPress: () => void mutate('delete', () => deleteTransfer(database, transfer.syncId)),
+      },
+    ]);
   }
 
   return (
@@ -209,20 +240,22 @@ export function TransferForm({ accounts, initialSelection, onSavingChange, onSav
         <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
             <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>
-              {translations.newTransfer}
+              {transfer ? translations.editTransfer : translations.newTransfer}
             </Text>
 
             {(['fromId', 'toId'] as const).map((field) => {
               const isSource = field === 'fromId';
               const label = isSource ? translations.transferFrom : translations.transferTo;
               const excludedId = isSource ? selection.toId : selection.fromId;
+              const originalId = isSource ? transfer?.fromAccountSyncId : transfer?.toAccountSyncId;
 
               return (
                 <View key={field} style={styles.field}>
                   <Text style={[styles.label, { color: palette.text }]}>{label}</Text>
                   <AccountSelect
                     label={label}
-                    accounts={accounts.filter((account) => account.syncId !== excludedId)}
+                    accounts={accounts.filter((account) => account.syncId !== excludedId &&
+                      (account.archivedAt === null || account.syncId === originalId))}
                     value={selection[field]}
                     expanded={expanded === field}
                     onExpandedChange={(open) => setExpanded(open ? field : null)}
@@ -319,14 +352,26 @@ export function TransferForm({ accounts, initialSelection, onSavingChange, onSav
 
             <View style={styles.actions}>
               <AppButton
-                title={saving ? translations.saving : translations.save}
+                title={pendingAction === 'save' ? translations.saving : translations.save}
                 nativeGlass
                 rightIcon="check"
                 keepTitleCentered
-                disabled={loadingRate}
-                loading={saving}
+                disabled={loadingRate || pendingAction === 'delete'}
+                loading={pendingAction === 'save'}
                 onPress={() => void save()}
               />
+              {transfer && (
+                <AppButton
+                  title={translations.deleteTransfer}
+                  nativeGlass
+                  rightIcon="delete"
+                  keepTitleCentered
+                  variant="danger"
+                  disabled={loadingRate || pendingAction === 'save'}
+                  loading={pendingAction === 'delete'}
+                  onPress={confirmDelete}
+                />
+              )}
               <AppButton
                 title={translations.cancel}
                 nativeGlass

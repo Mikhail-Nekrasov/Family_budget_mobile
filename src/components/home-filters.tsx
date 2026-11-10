@@ -5,23 +5,27 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Option = { id: string; name: string };
+type PeriodFilter = { label: string; active: boolean; onPress: () => void; onReset: () => void };
+
 type Props = {
   accountIds: string[];
-  categoryIds: string[];
+  categoryIds?: string[];
   onAccountsChange: (ids: string[]) => void;
-  onCategoriesChange: (ids: string[]) => void;
+  onCategoriesChange?: (ids: string[]) => void;
   accountOptions: Option[];
-  categoryOptions: Option[];
+  categoryOptions?: Option[];
+  periodFilter?: PeriodFilter;
   palette: { card: string; text: string; muted: string; accent: string; line: string };
 };
 
 export function HomeFilters({
   accountIds,
-  categoryIds,
+  categoryIds = [],
   onAccountsChange,
   onCategoriesChange,
   accountOptions,
-  categoryOptions,
+  categoryOptions = [],
+  periodFilter,
   palette,
 }: Props) {
   const { translations } = useLanguage();
@@ -46,7 +50,7 @@ export function HomeFilters({
 
   function apply() {
     if (active === 'accounts') onAccountsChange(draft);
-    if (active === 'categories') onCategoriesChange(draft);
+    if (active === 'categories') onCategoriesChange?.(draft);
     setActive(null);
   }
 
@@ -61,17 +65,30 @@ export function HomeFilters({
               : translations.allAccounts} ▾
           </Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => openFilter('categories')}
-          style={[styles.chip, { backgroundColor: palette.card, borderColor: categoryIds.length ? palette.accent : palette.line }]}>
-          <Text style={{ color: palette.text }}>
-            {categoryIds.length
-              ? translations.selectedCategories(categoryIds.length)
-              : translations.allCategories} ▾
-          </Text>
-        </Pressable>
+        {periodFilter ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={periodFilter.onPress}
+            style={[
+              styles.chip,
+              { backgroundColor: palette.card, borderColor: periodFilter.active ? palette.accent : palette.line },
+            ]}
+          >
+            <Text numberOfLines={1} style={{ color: palette.text }}>{periodFilter.label} ▾</Text>
+          </Pressable>
+        ) : (
+          <Pressable accessibilityRole="button" onPress={() => openFilter('categories')}
+            style={[styles.chip, { backgroundColor: palette.card, borderColor: categoryIds.length ? palette.accent : palette.line }]}>
+            <Text style={{ color: palette.text }}>
+              {categoryIds.length
+                ? translations.selectedCategories(categoryIds.length)
+                : translations.allCategories} ▾
+            </Text>
+          </Pressable>
+        )}
       </View>
-      {(accountIds.length > 0 || categoryIds.length > 0) && (
-        <Pressable accessibilityRole="button" style={styles.reset} onPress={() => { onAccountsChange([]); onCategoriesChange([]); }}>
+      {(accountIds.length > 0 || categoryIds.length > 0 || periodFilter?.active) && (
+        <Pressable accessibilityRole="button" style={styles.reset} onPress={() => { onAccountsChange([]); onCategoriesChange?.([]); periodFilter?.onReset(); }}>
           <Text style={{ color: palette.accent }}>{translations.resetFilters}</Text>
         </Pressable>
       )}

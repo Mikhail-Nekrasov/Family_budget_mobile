@@ -4,7 +4,7 @@ import { StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { useLanguage } from '@/hooks/use-language';
 import type { RateListRow } from '@/models/exchange-rate-list';
-import { getCurrencySymbol } from '@/utils/format-money';
+import { formatExchangeRate, getCurrencySymbol } from '@/utils/format-money';
 
 type Props = {
   onLayout?: () => void;
@@ -37,9 +37,6 @@ export function ExchangeRateCard({ row, baseCurrency, onLayout }: Props) {
   }).format(new Date(`${value}T12:00:00`));
   const dates = [...new Set([row.sourceDate, row.targetDate]
     .filter((value): value is string => value !== null))];
-  const rate = row.rate === null ? null : new Intl.NumberFormat(locale, {
-    maximumSignificantDigits: 8,
-  }).format(row.rate);
 
   return (
     <View style={styles.card} onLayout={onLayout}>
@@ -82,9 +79,9 @@ export function ExchangeRateCard({ row, baseCurrency, onLayout }: Props) {
           {row.currencyCode} · {getCurrencySymbol(row.currencyCode)}
         </Text>
         <Text style={[styles.rate, { color: palette.text }]}>
-          {rate === null
+          {row.rate === null
             ? translations.ratesUnavailable
-            : `1 ${getCurrencySymbol(baseCurrency)} = ${rate} ${getCurrencySymbol(row.currencyCode)}`}
+            : formatExchangeRate(row.rate, baseCurrency, row.currencyCode, locale)}
         </Text>
       </View>
       <View style={styles.metadata}>

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useRef, useState } from 'react';
 import {
@@ -22,12 +23,12 @@ import { AccountTransferList } from '@/components/accounts/account-transfer-list
 import { AppButton } from '@/components/app-button';
 import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
-import { TransferForm, type TransferSelection } from '@/components/transfers/transfer-form';
 import {
   StartupEmptyLayout,
   startupPreloadEnabled,
   useStartupScreenLayout,
 } from '@/components/startup-layout';
+import { TransferForm, type TransferSelection } from '@/components/transfers/transfer-form';
 import { useFocusedList } from '@/hooks/use-focused-list';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
@@ -254,15 +255,28 @@ export default function AccountsScreen() {
         {!accounts.length && <StartupEmptyLayout onLayout={markStartupLayout} />}
         {!showArchived && (
           <View style={styles.footer}>
-            <AppButton
-              title={translations.newTransfer}
-              nativeGlass
-              rightSymbol="⇄"
-              disabled={!canTransfer || reorderMode}
-              onPress={() => {
-                if (!savingOrderRef.current) setTransfer({ fromId: null, toId: null });
-              }}
-            />
+            <View style={styles.transferActions}>
+              <AppButton
+                title={translations.transferHistory}
+                nativeGlass
+                rightIcon="list"
+                iconOnly
+                disabled={reorderMode}
+                onPress={() => router.push('/accounts/transfer-history')}
+              />
+              <View style={styles.transferAction}>
+                <AppButton
+                  title={translations.newTransfer}
+                  nativeGlass
+                  rightSymbol="⇄"
+                  disabled={!canTransfer || reorderMode}
+                  titleOffsetX={-28}
+                  onPress={() => {
+                    if (!savingOrderRef.current) setTransfer({ fromId: null, toId: null });
+                  }}
+                />
+              </View>
+            </View>
             {hasTransferAccounts && (
               <AppButton
                 title={reorderMode ? translations.finishReordering : translations.reorderAccounts}
@@ -322,6 +336,15 @@ export default function AccountsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  transferActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  transferAction: {
+    flex: 1,
+    minWidth: 0,
   },
   footer: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8, gap: 8 },
   content: {

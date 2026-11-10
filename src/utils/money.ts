@@ -37,3 +37,21 @@ export function parseAmountToMinor(
 
   return amount === 0 ? 0 : negative ? -amount : amount;
 }
+
+
+export function currencyFractionDigits(currencyCode: string): number {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: currencyCode,
+  }).resolvedOptions().maximumFractionDigits ?? 2;
+}
+
+export function rateFromAmounts(
+  sourceAmountMinor: number,
+  sourceCurrencyCode: string,
+  targetAmountMinor: number,
+  targetCurrencyCode: string,
+): number {
+  return targetAmountMinor / sourceAmountMinor *
+    10 ** (currencyFractionDigits(sourceCurrencyCode) - currencyFractionDigits(targetCurrencyCode));
+}

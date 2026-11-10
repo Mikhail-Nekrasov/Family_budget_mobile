@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountIcon } from '@/components/accounts/account-icon';
 import { AppButton } from '@/components/app-button';
+import { AppSwitch } from '@/components/app-switch';
 import { CompactIconSelect } from '@/components/compact-icon-select';
 import { FieldError } from '@/components/field-error';
 import { IconColorSelect } from '@/components/icons/icon-color-select';
@@ -82,6 +83,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
     account?.description ?? '',
   );
   const [openingBalance, setOpeningBalance] = useState('0');
+  const [hidden, setHidden] = useState(account?.isHidden === 1);
   const [iconKey, setIconKey] = useState(
     account?.iconKey ?? 'cash',
   );
@@ -200,6 +202,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
           description,
           iconKey,
           iconColor,
+          isHidden: hidden ? 1 : 0,
         });
       } else {
         await createAccount(database, {
@@ -208,6 +211,7 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
           currencyCode,
           iconKey,
           iconColor,
+          isHidden: hidden ? 1 : 0,
           openingBalanceMinor,
         });
       }
@@ -475,7 +479,18 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
                   </View>
                 )}
               </View>
+              {account && (
+                <View style={styles.editHidden}>
+                  <AppSwitch label={translations.hideAccount} value={hidden} onValueChange={setHidden} disabled={saving} />
+                </View>
+              )}
             </View>
+
+            {!account && (
+              <View style={styles.newHidden}>
+                <AppSwitch label={translations.hideAccount} value={hidden} onValueChange={setHidden} disabled={saving} />
+              </View>
+            )}
 
             <Text style={[styles.label, { color: palette.text }]}>
               {translations.accountIcon}
@@ -614,6 +629,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 6,
   },
+  newHidden: { alignItems: 'flex-end' },
+  editHidden: { flex: 3, minWidth: 0, alignSelf: 'center', alignItems: 'flex-end' },
   currencyColumn: {
     flex: 2,
     minWidth: 0,

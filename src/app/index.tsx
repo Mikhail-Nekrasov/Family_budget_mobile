@@ -9,6 +9,11 @@ import { ScreenTabs } from '@/components/screen-tabs';
 import { StartupEmptyLayout, useStartupScreenLayout } from '@/components/startup-layout';
 import { getOtherCategoryIconKey } from '@/constants/category-icons';
 import { useEntryConversion } from '@/hooks/use-entry-conversion';
+import {
+  dashboardChartSize,
+  HOME_CHART_TOP_GAP,
+  reportHomeChartRowHeight,
+} from '@/hooks/use-home-chart-offset';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
 import type { Category } from '@/models/category';
@@ -72,7 +77,7 @@ export default function HomeScreen() {
   const dark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const chartSize = Math.min(240, Math.max(80, width - insets.left - insets.right - 40 - 112));
+  const chartSize = dashboardChartSize(width, insets.left, insets.right);
   const palette = dark
     ? { background: '#111722', card: '#1C2432', text: '#F0F3FA', muted: '#A8B3C5', line: '#333F52', accent: '#A0B8FF', icon: '#29354B' }
     : { background: '#F5F6F9', card: '#FFFFFF', text: '#192238', muted: '#6C7890', line: '#E0E5EE', accent: '#365BBC', icon: '#EAF0FC' };
@@ -204,7 +209,10 @@ export default function HomeScreen() {
         edges={['top', 'left', 'right']}
         style={styles.screen}
       >
-        <View style={styles.tabs}>
+        <View
+          style={styles.tabs}
+          onLayout={({ nativeEvent }) => reportHomeChartRowHeight('tabs', nativeEvent.layout.height)}
+        >
           <MenuButton />
 
           <ScreenTabs<EntryType>
@@ -233,7 +241,10 @@ export default function HomeScreen() {
           keyExtractor={(entry) => entry.syncId}
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
           ListHeaderComponent={<View style={styles.header}>
-            <View style={styles.period}>
+            <View
+              style={styles.period}
+              onLayout={({ nativeEvent }) => reportHomeChartRowHeight('period', nativeEvent.layout.height)}
+            >
               <Pressable
                 onPress={() => changePeriod(-1)}
                 accessibilityRole="button"
@@ -438,7 +449,7 @@ const styles = StyleSheet.create({
   chartPanel: {
     alignItems: 'center',
     position: 'relative',
-    marginTop: 4,
+    marginTop: HOME_CHART_TOP_GAP,
     marginBottom: 0
   },
   addButton: {
