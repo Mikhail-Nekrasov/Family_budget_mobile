@@ -4,6 +4,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
+import { startupPreloadEnabled } from '@/components/startup-layout';
 import type { RateListData } from '@/models/exchange-rate-list';
 import {
     readRateList,
@@ -25,6 +26,8 @@ export function useExchangeRateList(date: string | null) {
   const online = network.isConnected === true && network.isInternetReachable !== false;
   const [appState, setAppState] = useState(AppState.currentState);
   const handledRefresh = useRef(0);
+  const hasFocused = useRef(false);
+  const [localReady, setLocalReady] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
   const [state, setState] = useState<LoadState>({
     date,
@@ -39,6 +42,7 @@ export function useExchangeRateList(date: string | null) {
   }, []);
 
   useFocusEffect(useCallback(() => {
+    hasFocused.current = true;
     let active = true;
     async function load() {
       setState((current) => ({
@@ -48,7 +52,9 @@ export function useExchangeRateList(date: string | null) {
         failed: false,
       }));
       try {
-        const cached = await readRateList(database, date);
+        const cached = await readRateList(database, date).finally(() => {
+          if (active) setLocalReady(true);
+        });
         if (!active) {
           return;
         }
@@ -76,7 +82,27 @@ export function useExchangeRateList(date: string | null) {
     return () => { active = false; };
   }, [database, date, online, appState, refreshToken]));
 
+  useEffect(() => {
+    if (!startupPreloadEnabled || date !== null || hasFocused.current) return;
+
+    let active = true;
+
+    void readRateList(database, null).then((cached) => {
+      if (!active || hasFocused.current) return;
+      setState({ date: null, data: cached, loading: false, failed: false });
+    }).catch((error) => {
+      if (!active || hasFocused.current) return;
+      console.warn('Failed to preload exchange rates', error);
+      setState({ date: null, data: EMPTY_DATA, loading: false, failed: true });
+    }).finally(() => {
+      if (active && !hasFocused.current) setLocalReady(true);
+    });
+
+    return () => { active = false; };
+  }, [database, date]);
+
   return {
+    localReady,
     data: state.date === date ? state.data : EMPTY_DATA,
     loading: state.date !== date || state.loading,
     failed: state.date === date && state.failed,

@@ -15,6 +15,7 @@ import { formatMoney } from '@/utils/format-money';
 type AccountCardProps = {
   account: Account;
   locale: string;
+  onLayout?: () => void;
   onPress: () => void;
   onLongPress?: () => void;
 };
@@ -33,6 +34,7 @@ function formatBalance(
 export function AccountCard({
   account,
   locale,
+  onLayout,
   onPress,
   onLongPress,
 }: AccountCardProps) {
@@ -58,6 +60,7 @@ export function AccountCard({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
+      onLayout={onLayout}
       onLongPress={onLongPress}
       delayLongPress={500}
       style={({ pressed }) => [

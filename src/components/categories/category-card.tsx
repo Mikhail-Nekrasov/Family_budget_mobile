@@ -15,11 +15,13 @@ import { getCategoryName } from '@/utils/category-name';
 
 type CategoryCardProps = {
   category: Category;
+  onLayout?: () => void;
   onPress: () => void;
 };
 
 export function CategoryCard({
   category,
+  onLayout,
   onPress,
 }: CategoryCardProps) {
   const { language } = useLanguage();
@@ -52,6 +54,7 @@ export function CategoryCard({
       accessibilityRole="button"
       accessibilityLabel={getCategoryName(category, language)}
       onPress={onPress}
+      onLayout={onLayout}
       style={({ pressed }) => [styles.card, { opacity: pressed ? 0.75 : 1 }]}
     >
       <BlurView

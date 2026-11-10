@@ -8,8 +8,8 @@ import { scheduleOnRN } from 'react-native-worklets';
 const INITIAL_SCALE_FACTOR = Dimensions.get('screen').height / 90;
 const DURATION = 600;
 
-export function AnimatedSplashOverlay() {
-  const [animate, setAnimate] = useState(false);
+export function AnimatedSplashOverlay({ ready }: { ready: boolean }) {
+  const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(true);
 
   if (!visible) return null;
@@ -33,9 +33,15 @@ export function AnimatedSplashOverlay() {
     },
   });
 
-  const image = <Image style={styles.image} source={require('@/assets/images/expo-logo.png')} />;
+  const image = (
+  <Image
+    source={require('@/assets/images/panda-loading-screen.png')}
+    style={StyleSheet.absoluteFill}
+    contentFit="cover"
+  />
+);
 
-  return animate ? (
+  return mounted && ready ? (
     <Animated.View
       entering={splashKeyframe.duration(DURATION).withCallback((finished) => {
         'worklet';
@@ -49,8 +55,9 @@ export function AnimatedSplashOverlay() {
   ) : (
     <View
       onLayout={() => {
+        if (mounted) return;
         SplashScreen.hideAsync().finally(() => {
-          setAnimate(true);
+          setMounted(true);
         });
       }}
       style={styles.splashOverlay}>
@@ -140,7 +147,7 @@ const styles = StyleSheet.create({
   },
   splashOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#208AEF',
+    backgroundColor: '#F5F6F9',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,

@@ -23,6 +23,7 @@ type EntryCardProps = {
   currencySymbol: string;
   income: boolean;
   accessibilityLabel: string;
+  onLayout?: () => void;
   onPress: () => void;
 };
 
@@ -39,6 +40,7 @@ export function EntryCard({
   currencySymbol,
   income,
   accessibilityLabel,
+  onLayout,
   onPress,
 }: EntryCardProps) {
   const dark = useColorScheme() === 'dark';
@@ -72,6 +74,7 @@ export function EntryCard({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
+      onLayout={onLayout}
       style={({ pressed }) => [
         styles.card,
         { opacity: pressed ? 0.75 : 1 },

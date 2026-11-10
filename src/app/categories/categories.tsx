@@ -19,6 +19,11 @@ import { CategoryCard } from '@/components/categories/category-card';
 import { CategoryForm } from '@/components/categories/category-form';
 import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
+import {
+  StartupEmptyLayout,
+  startupPreloadEnabled,
+  useStartupScreenLayout,
+} from '@/components/startup-layout';
 import { useFocusedList } from '@/hooks/use-focused-list';
 import { useLanguage } from '@/hooks/use-language';
 import type { Category } from '@/models/category';
@@ -54,7 +59,9 @@ export default function CategoriesScreen() {
     type,
     loadCategories,
     createVisible,
+    startupPreloadEnabled,
   );
+  const markStartupLayout = useStartupScreenLayout('categories', status !== 'loading');
 
   return (
     <ScreenBackground>
@@ -114,8 +121,9 @@ export default function CategoriesScreen() {
               </Text>
             )
           }
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <CategoryCard
+              onLayout={index === 0 ? markStartupLayout : undefined}
               category={item}
               onPress={() => {
                 setEditingCategory(item);
@@ -124,6 +132,7 @@ export default function CategoriesScreen() {
             />
           )}
         />
+        {!categories.length && <StartupEmptyLayout onLayout={markStartupLayout} />}
         <Modal
           visible={createVisible}
           animationType="slide"

@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type ListState<Row> =
   | { status: 'ready'; rows: Row[] }
@@ -11,6 +11,7 @@ export function useFocusedList<Key extends string, Row>(
   key: Key,
   load: (key: Key) => Promise<Row[]>,
   paused = false,
+  preloadBeforeFocus = false,
 ) {
   type Entry = ListState<Row>;
   type AllTabs = Record<Key, Entry>;
@@ -19,9 +20,14 @@ export function useFocusedList<Key extends string, Row>(
   const [cache, setCache] = useState<Cache>({});
   
   const revision = useRef(0);
+  const hasFocused = useRef(false);
+  const warmedKey = useRef<Key | null>(null);
 
   useFocusEffect(useCallback(() => {
     if (paused) return;
+
+    const refreshingPreloadedRows = !hasFocused.current && warmedKey.current === key;
+    hasFocused.current = true;
 
     let active = true;
     const startRevision = revision.current;
@@ -31,10 +37,16 @@ export function useFocusedList<Key extends string, Row>(
         const rows = await load(key);
 
         if (active && revision.current === startRevision) {
-          setCache((current) => ({
-            ...current,
-            [key]: { status: 'ready', rows },
-          }));
+          setCache((current) => {
+            const previous = current[key];
+            if (
+              refreshingPreloadedRows && previous?.status === 'ready' &&
+              JSON.stringify(previous.rows) === JSON.stringify(rows)
+            ) {
+              return current;
+            }
+            return { ...current, [key]: { status: 'ready', rows } };
+          });
         }
       } catch (error) {
         if (!active || revision.current !== startRevision) return;
@@ -52,6 +64,29 @@ export function useFocusedList<Key extends string, Row>(
       active = false;
     };
   }, [key, load, paused]));
+
+  useEffect(() => {
+    if (!preloadBeforeFocus || hasFocused.current || warmedKey.current !== null) {
+      return;
+    }
+
+    let active = true;
+
+    void load(key).then((rows) => {
+      if (!active || hasFocused.current) return;
+      warmedKey.current = key;
+      setCache((current) => ({
+        ...current,
+        [key]: { status: 'ready', rows },
+      }));
+    }).catch((error) => {
+      if (active && !hasFocused.current) {
+        console.warn('Failed to preload list', key, error);
+      }
+    });
+
+    return () => { active = false; };
+  }, [key, load, preloadBeforeFocus]);
 
   function setRows(rows: Row[]) {
     revision.current += 1;

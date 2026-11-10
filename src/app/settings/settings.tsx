@@ -1,6 +1,4 @@
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
+import { useRouter } from 'expo-router';
 import {
   Pressable,
   ScrollView,
@@ -11,15 +9,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenBackground } from '@/components/screen-background';
-import {
-  CURRENCY_SYMBOLS,
-  type CurrencyCode
-} from '@/constants/currencies';
+import { StartupEmptyLayout, useStartupScreenLayout } from '@/components/startup-layout';
+import { usePrimaryCurrencyPreference } from '@/hooks/use-primary-currency-preference';
+import { CURRENCY_SYMBOLS } from '@/constants/currencies';
 import { useLanguage } from '@/hooks/use-language';
 import type { Language } from '@/i18n/languages';
-import {
-  getPrimaryCurrency
-} from '@/repositories/preferences-repository';
 
 const languageNames: Record<Language, string> = {
   en: 'English',
@@ -32,41 +26,9 @@ export default function SettingsScreen() {
   const { language, translations } = useLanguage();
 
   const dark = useColorScheme() === 'dark';
-  const database = useSQLiteContext();
-
-  const [primaryCurrency, setCurrency] =
-    useState<CurrencyCode | null>(null);
-
-  const [preferencesError, setPreferencesError] = useState(false);
-
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-
-      async function loadPreferences() {
-        try {
-          const currency = await getPrimaryCurrency(database);
-
-          if (active) {
-            setCurrency(currency);
-            setPreferencesError(false);
-          }
-        } catch (error) {
-          console.warn('Failed to load preferences', error);
-
-          if (active) {
-            setPreferencesError(true);
-          }
-        }
-      }
-
-      void loadPreferences();
-
-      return () => {
-        active = false;
-      };
-    }, [database]),
-  );
+  const { currency: primaryCurrency, status } = usePrimaryCurrencyPreference();
+  const preferencesError = status === 'error';
+  const markStartupLayout = useStartupScreenLayout('settings', status !== 'loading');
 
   const palette = dark
     ? {
@@ -183,6 +145,7 @@ export default function SettingsScreen() {
             </Text>
           )}
         </ScrollView>
+        <StartupEmptyLayout onLayout={markStartupLayout} />
       </SafeAreaView>
     </ScreenBackground>
   );

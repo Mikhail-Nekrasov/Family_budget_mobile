@@ -6,6 +6,7 @@ import { MenuButton } from '@/components/menu-button';
 import { PeriodSelector } from '@/components/periods/period-selector';
 import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
+import { StartupEmptyLayout, useStartupScreenLayout } from '@/components/startup-layout';
 import { getOtherCategoryIconKey } from '@/constants/category-icons';
 import { useEntryConversion } from '@/hooks/use-entry-conversion';
 import { useLanguage } from '@/hooks/use-language';
@@ -154,6 +155,9 @@ export default function HomeScreen() {
     accounts.map((account) => [account.syncId, account]),
   );
 
+  const visibleEntries = entries.filter((entry) => accountsById.has(entry.accountSyncId));
+  const markStartupLayout = useStartupScreenLayout('home', status !== 'loading');
+
   const chartCurrencyCode = primaryCurrency;
 
   const {
@@ -225,7 +229,7 @@ export default function HomeScreen() {
         <FlatList
           showsVerticalScrollIndicator={false}
           contentInsetAdjustmentBehavior="never"
-          data={entries.filter((entry) => accountsById.has(entry.accountSyncId))}
+          data={visibleEntries}
           keyExtractor={(entry) => entry.syncId}
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
           ListHeaderComponent={<View style={styles.header}>
@@ -330,7 +334,7 @@ export default function HomeScreen() {
               </Text>
             )
           }
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const account = accountsById.get(
               item.accountSyncId,
             );
@@ -345,6 +349,7 @@ export default function HomeScreen() {
 
             return (
               <EntryCard
+                onLayout={index === 0 ? markStartupLayout : undefined}
                 title={item.title}
                 accountName={account.name}
                 iconKey={account.iconKey}
@@ -377,6 +382,7 @@ export default function HomeScreen() {
             );
           }
         } />
+        {!visibleEntries.length && <StartupEmptyLayout onLayout={markStartupLayout} />}
       </SafeAreaView>
 
       <PeriodSelector

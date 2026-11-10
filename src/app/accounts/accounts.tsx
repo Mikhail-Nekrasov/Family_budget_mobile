@@ -18,10 +18,16 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountCard } from '@/components/accounts/account-card';
 import { AccountForm } from '@/components/accounts/account-form';
+import { AccountTransferList } from '@/components/accounts/account-transfer-list';
 import { AppButton } from '@/components/app-button';
 import { ScreenBackground } from '@/components/screen-background';
 import { ScreenTabs } from '@/components/screen-tabs';
 import { TransferForm, type TransferSelection } from '@/components/transfers/transfer-form';
+import {
+  StartupEmptyLayout,
+  startupPreloadEnabled,
+  useStartupScreenLayout,
+} from '@/components/startup-layout';
 import { useFocusedList } from '@/hooks/use-focused-list';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
@@ -31,6 +37,7 @@ type ReorderableAccountCardProps = {
   account: Account;
   locale: string;
   onPress: () => void;
+  onLayout?: () => void;
   canReorder: boolean;
 };
 
@@ -38,6 +45,7 @@ function ReorderableAccountCard({
   account,
   locale,
   onPress,
+  onLayout,
   canReorder,
 }: ReorderableAccountCardProps) {
   const drag = useReorderableDrag();
@@ -47,6 +55,7 @@ function ReorderableAccountCard({
       account={account}
       locale={locale}
       onPress={onPress}
+      onLayout={onLayout}
       onLongPress={canReorder ? drag : undefined}
     />
   );
@@ -62,7 +71,6 @@ export default function AccountsScreen() {
   const [showArchived, setShowArchived] = useState(false);
   const [reorderMode, setReorderMode] = useState(false);
   const [transfer, setTransfer] = useState<TransferSelection | null>(null);
-  const [listRevision, setListRevision] = useState(0);
   const transferVisible = transfer !== null;
   const transferSaving = useRef(false);
 
@@ -95,29 +103,21 @@ export default function AccountsScreen() {
     showArchived ? 'archived' : 'active',
     loadAccounts,
     createVisible || transferVisible,
+    startupPreloadEnabled,
   );
+  const markStartupLayout = useStartupScreenLayout('accounts', status !== 'loading');
 
   async function handleReorder({
     from,
     to,
   }: ReorderableListReorderEvent) {
     if (
+      !reorderMode ||
       from === to ||
       showArchived ||
       status !== 'ready' ||
       savingOrderRef.current
     ) {
-      return;
-    }
-
-    if (!reorderMode) {
-      const source = accounts[from];
-      const target = accounts[to];
-      if (!source || !target || source.syncId === target.syncId) return;
-
-      // The drag library rearranges its internal layout even if data is unchanged.
-      setListRevision((current) => current + 1);
-      setTransfer({ fromId: source.syncId, toId: target.syncId });
       return;
     }
 
@@ -205,30 +205,53 @@ export default function AccountsScreen() {
               value={showArchived ? 'archived' : 'active'}
               onChange={(value) => {
                 if (!savingOrderRef.current) {
-                    setReorderMode(false);
+                  setReorderMode(false);
                   setShowArchived(value === 'archived');
                 }
               }}
             />
           </View>
         </View>
-        <ReorderableList
-          key={listRevision}
-          data={accounts}
-          keyExtractor={(account) => account.syncId}
-          contentContainerStyle={styles.content}
-          ListEmptyComponent={emptyList}
-          dragEnabled={activeAccountsReady && hasTransferAccounts}
-          onReorder={(event) => void handleReorder(event)}
-          renderItem={({ item }) => (
-            <ReorderableAccountCard
-              account={item}
-              locale={locale}
-              canReorder={activeAccountsReady && hasTransferAccounts}
-              onPress={() => openAccount(item)}
-            />
-          )}
-        />
+        {reorderMode ? (
+          <ReorderableList
+            data={accounts}
+            keyExtractor={(account) => account.syncId}
+            contentContainerStyle={styles.content}
+            ListEmptyComponent={emptyList}
+            dragEnabled={activeAccountsReady && hasTransferAccounts}
+            onReorder={(event) => void handleReorder(event)}
+            renderItem={({ item, index }) => (
+              <ReorderableAccountCard
+                onLayout={index === 0 ? markStartupLayout : undefined}
+                account={item}
+                locale={locale}
+                canReorder={activeAccountsReady && hasTransferAccounts}
+                onPress={() => openAccount(item)}
+              />
+            )}
+          />
+        ) : (
+          <AccountTransferList
+            accounts={accounts}
+            locale={locale}
+            enabled={activeAccountsReady && canTransfer && !createVisible && !transferVisible}
+            empty={emptyList}
+            contentStyle={styles.content}
+            onOpen={openAccount}
+            onFirstCardLayout={markStartupLayout}
+            onTransfer={(fromId, toId) => {
+              if (
+                !canTransfer || createVisible || transferVisible ||
+                !accounts.some((account) => account.syncId === fromId) ||
+                !accounts.some((account) => account.syncId === toId)
+              ) {
+                return;
+              }
+              setTransfer({ fromId, toId });
+            }}
+          />
+        )}
+        {!accounts.length && <StartupEmptyLayout onLayout={markStartupLayout} />}
         {!showArchived && (
           <View style={styles.footer}>
             <AppButton

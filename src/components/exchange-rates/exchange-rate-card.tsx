@@ -7,11 +7,12 @@ import type { RateListRow } from '@/models/exchange-rate-list';
 import { getCurrencySymbol } from '@/utils/format-money';
 
 type Props = {
+  onLayout?: () => void;
   row: RateListRow;
   baseCurrency: string;
 };
 
-export function ExchangeRateCard({ row, baseCurrency }: Props) {
+export function ExchangeRateCard({ row, baseCurrency, onLayout }: Props) {
   const { translations, locale } = useLanguage();
   const dark = useColorScheme() === 'dark';
   const palette = dark
@@ -41,7 +42,7 @@ export function ExchangeRateCard({ row, baseCurrency }: Props) {
   }).format(row.rate);
 
   return (
-    <View style={styles.card}>
+    <View style={styles.card} onLayout={onLayout}>
       <BlurView
         intensity={15}
         tint="default"

@@ -1,6 +1,4 @@
-import { useFocusEffect } from 'expo-router';
-import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,10 +6,11 @@ import { AppButton } from '@/components/app-button';
 import { ExchangeRateCard } from '@/components/exchange-rates/exchange-rate-card';
 import { RateFilters } from '@/components/exchange-rates/rate-filters';
 import { ScreenBackground } from '@/components/screen-background';
+import { StartupEmptyLayout, useStartupScreenLayout } from '@/components/startup-layout';
 import type { CurrencyCode } from '@/constants/currencies';
 import { useExchangeRateList } from '@/hooks/use-exchange-rate-list';
 import { useLanguage } from '@/hooks/use-language';
-import { getPrimaryCurrency } from '@/repositories/preferences-repository';
+import { usePrimaryCurrencyPreference } from '@/hooks/use-primary-currency-preference';
 import { buildRateListRows } from '@/services/exchange-rate-list-service';
 
 function localDateKey(date: Date): string {
@@ -19,43 +18,28 @@ function localDateKey(date: Date): string {
 }
 
 export default function ExchangeRatesScreen() {
-  const database = useSQLiteContext();
   const { translations } = useLanguage();
   const dark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
-  const [currency, setCurrency] = useState<CurrencyCode | null>(null);
-  const [preferencesFailed, setPreferencesFailed] = useState(false);
+  const { currency: primaryCurrency, status: preferencesStatus } = usePrimaryCurrencyPreference();
+  const [selectedCurrency, setCurrency] = useState<CurrencyCode | null>(null);
+  const currency = selectedCurrency ?? primaryCurrency;
+  const preferencesFailed = preferencesStatus === 'error';
   const [historical, setHistorical] = useState(false);
   const [date, setDate] = useState(() => new Date());
-  const { data, loading, failed, online, refresh } = useExchangeRateList(
+  const { data, loading, failed, online, refresh, localReady } = useExchangeRateList(
     historical ? localDateKey(date) : null,
   );
   const rows = useMemo(
-    () => currency === null ? [] : buildRateListRows(data, currency),
-    [data, currency],
+    () => !localReady || currency === null ? [] : buildRateListRows(data, currency),
+    [data, currency, localReady],
   );
   const muted = dark ? '#A8B3C5' : '#6C7890';
 
-  useFocusEffect(useCallback(() => {
-    let active = true;
-    async function loadPreference() {
-      try {
-        const saved = await getPrimaryCurrency(database);
-        if (active) {
-          // A temporary choice here does not change the app's primary currency.
-          setCurrency((current) => current ?? saved);
-          setPreferencesFailed(false);
-        }
-      } catch (error) {
-        console.warn('Failed to load exchange rate base currency', error);
-        if (active) {
-          setPreferencesFailed(true);
-        }
-      }
-    }
-    void loadPreference();
-    return () => { active = false; };
-  }, [database]));
+  const markStartupLayout = useStartupScreenLayout(
+    'exchangeRates',
+    localReady && preferencesStatus !== 'loading',
+  );
 
   return (
     <ScreenBackground>
@@ -96,10 +80,15 @@ export default function ExchangeRatesScreen() {
               )}
             </View>
           }
-          renderItem={({ item }) => (
-            <ExchangeRateCard row={item} baseCurrency={currency ?? data.baseCurrency} />
+          renderItem={({ item, index }) => (
+            <ExchangeRateCard
+              row={item}
+              baseCurrency={currency ?? data.baseCurrency}
+              onLayout={index === 0 ? markStartupLayout : undefined}
+            />
           )}
         />
+        {!rows.length && <StartupEmptyLayout onLayout={markStartupLayout} />}
       </SafeAreaView>
     </ScreenBackground>
   );
