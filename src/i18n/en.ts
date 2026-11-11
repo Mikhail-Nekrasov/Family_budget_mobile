@@ -201,6 +201,12 @@ export const en = {
   saveAccountOrderError: 'Could not save account order',
 
   entryTitle: 'Title',
+  calculator: 'Calculator',
+  calculatorUseAmount: 'Use amount',
+  calculatorBackspace: 'Delete last digit',
+  calculatorClear: 'Clear',
+  calculatorChangeSign: 'Change sign',
+  calculatorInvalid: 'Invalid operation',
   entryAmount: 'Amount',
   entryAccount: 'Account',
   entryCategory: 'Category',

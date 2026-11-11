@@ -33,7 +33,13 @@ export function CategoryIcon({
         d={getIconPath(iconKey)}
         fill="none"
         stroke={color}
-        strokeWidth={1.7}
+                strokeWidth={
+          ({
+            car: 1.357,
+            transport: 1.4,
+            hobbies: 1.1,
+          } as Record<string, number>)[iconKey] ?? 1.7
+        }
         strokeLinecap="round"
         strokeLinejoin="round"
       />

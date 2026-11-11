@@ -3,6 +3,7 @@ import { type ComponentRef, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -10,6 +11,7 @@ import {
   Text,
   TextInput,
   useColorScheme,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +21,7 @@ import { AppButton } from '@/components/app-button';
 import { CategoryForm } from '@/components/categories/category-form';
 import { CategoryIcon } from '@/components/categories/category-icon';
 import { CompactIconSelect } from '@/components/compact-icon-select';
+import { EntryCalculator } from '@/components/entries/entry-calculator';
 import { EntryDateTime } from '@/components/entries/entry-date-time';
 import { FieldError } from '@/components/field-error';
 import { ScreenBackground } from '@/components/screen-background';
@@ -64,6 +67,12 @@ type EntryFormProps = {
 
 type LoadStatus = 'loading' | 'ready' | 'error';
 
+function formatAmountInput(value: string): string {
+  return value.replace(/^\d+/, (integerPart) =>
+    integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0'),
+  );
+}
+
 export function EntryForm({
   type,
   entry,
@@ -74,7 +83,9 @@ export function EntryForm({
   const { translations, locale, language } = useLanguage();
   const dark = useColorScheme() === 'dark';
 
-  const [title, setTitle] = useState(entry?.title ?? '');
+  const [customTitle, setCustomTitle] = useState<string | null>(entry?.title ?? null);
+  const [calculatorVisible, setCalculatorVisible] = useState(false);
+  const { width: screenWidth } = useWindowDimensions();
   const [amount, setAmount] = useState('');
   const titleRef = useRef<ComponentRef<typeof TextInput>>(null);
   const amountRef = useRef<ComponentRef<typeof TextInput>>(null);
@@ -234,6 +245,9 @@ export function EntryForm({
     (account) => account.syncId === accountSyncId,
   );
 
+  const selectedCategory = categories.find((category) => category.syncId === categorySyncId);
+  const title = customTitle ?? (selectedCategory ? getCategoryName(selectedCategory, language) : '');
+
   const optionsAvailable =
     status === 'ready' &&
     accounts.length > 0 &&
@@ -263,15 +277,6 @@ export function EntryForm({
 
   async function saveEntry() {
     if (savingRef.current) {
-      return;
-    }
-
-    if (title.trim().length === 0) {
-      showFieldError(
-        'title',
-        translations.entryTitleRequired,
-        titleRef,
-      );
       return;
     }
 
@@ -322,6 +327,15 @@ export function EntryForm({
         'amount',
         translations.entryAmountInvalid,
         amountRef,
+      );
+      return;
+    }
+
+    if (title.trim().length === 0) {
+      showFieldError(
+        'title',
+        translations.entryTitleRequired,
+        titleRef,
       );
       return;
     }
@@ -442,6 +456,49 @@ export function EntryForm({
               </Text>
             ) : (
               <>
+                <Text style={[styles.label, { color: palette.text }]}>{translations.entryAmount}</Text>
+                <View style={styles.amountRow}>
+                  <View style={styles.amountLeft}>
+                    <AppButton
+                      title={translations.calculator}
+                      rightIcon="calculator"
+                      iconOnly
+                      nativeGlass
+                      disabled={saving || !selectedAccount}
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        setAccountExpanded(false);
+                        setCalculatorVisible(true);
+                      }}
+                    />
+                  </View>
+
+                  <TextInput
+                    accessibilityLabel={translations.entryAmount}
+                    value={formatAmountInput(amount)}
+                    keyboardType="decimal-pad"
+                    editable={!saving}
+                    ref={amountRef}
+                    onChangeText={(text) => {
+                      setAmount(text.replace(/\s/g, ''));
+                      clearError('amount');
+                    }}
+                    style={[
+                      inputStyle,
+                      styles.amount,
+                      { width: screenWidth * 0.5 },
+                      errors.amount && { borderColor: palette.error },
+                    ]}
+                  />
+
+                  <View style={styles.amountRight}>
+                    <Text style={[styles.amountCurrency, { color: palette.muted }]}>
+                      {selectedAccount?.currencyCode}
+                    </Text>
+                  </View>
+                </View>
+                <FieldError message={errors.amount} />
+
                 <Text style={[styles.label, { color: palette.text }]}>
                   {translations.entryTitle}
                 </Text>
@@ -453,7 +510,7 @@ export function EntryForm({
                   editable={!saving}
                   ref={titleRef}
                   onChangeText={(text) => {
-                    setTitle(text);
+                    setCustomTitle(text);
                     clearError('title');
                   }}
                   style={[
@@ -484,32 +541,6 @@ export function EntryForm({
                   }}
                   disabled={saving}
                 />
-
-                <Text style={[styles.label, { color: palette.text }]}>
-                  {translations.entryAmount}
-                  {' · '}
-                  {selectedAccount?.currencyCode}
-                </Text>
-
-                <TextInput
-                  accessibilityLabel={translations.entryAmount}
-                  value={amount}
-                  keyboardType="decimal-pad"
-                  editable={!saving}
-                  ref={amountRef}
-                  onChangeText={(text) => {
-                    setAmount(text);
-                    clearError('amount');
-                  }}
-                  style={[
-                    inputStyle,
-                    errors.amount && {
-                      borderColor: palette.error,
-                    },
-                  ]}
-                />
-
-                <FieldError message={errors.amount} />
 
                 <Text style={[styles.label, { color: palette.text }]}>
                   {translations.entryCategory}
@@ -627,6 +658,19 @@ export function EntryForm({
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
+        {selectedAccount && (
+          <EntryCalculator
+            visible={calculatorVisible}
+            amount={amount}
+            currencyCode={selectedAccount.currencyCode}
+            onUse={(value) => {
+              setAmount(value);
+              clearError('amount');
+              setCalculatorVisible(false);
+            }}
+            onClose={() => setCalculatorVisible(false)}
+          />
+        )}
       </SafeAreaView>
     </ScreenBackground>
   );
@@ -660,6 +704,32 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
+  },
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  amountLeft: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'flex-start',
+  },
+  amountRight: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'flex-start',
+  },
+  amount: {
+    minHeight: 54,
+    paddingVertical: 8,
+    fontSize: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  amountCurrency: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   description: {
     minHeight: 48,

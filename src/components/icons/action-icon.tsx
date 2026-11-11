@@ -11,6 +11,7 @@ const ACTION_ICON_PATHS = {
   refresh: 'M20 10a8 8 0 0 0-14-4L4 8m0-5v5h5m-5 6a8 8 0 0 0 14 4l2-2m0 5v-5h-5',
   dropdown: 'm6 9 6 6 6-6',
   chest: 'M3 11h18v8H3zM3 11V9a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v2M10 10h4v4h-4z',
+  calculator: 'M5 3h14v18H5zM8 7h8M8 11h1m6 0h1m-8 3h1m6 0h1m-8 3h1m6 0h1',
   list: 'M9 6h12M9 12h12M9 18h12M4 6h.1M4 12h.1M4 18h.1',
 } as const;
 

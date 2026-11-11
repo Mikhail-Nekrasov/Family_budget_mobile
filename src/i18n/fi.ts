@@ -203,6 +203,12 @@ export const fi: Messages = {
   saveAccountOrderError: 'Tilien järjestyksen tallentaminen epäonnistui',
 
   entryTitle: 'Nimi',
+  calculator: 'Laskin',
+  calculatorUseAmount: 'Käytä summaa',
+  calculatorBackspace: 'Poista viimeinen numero',
+  calculatorClear: 'Tyhjennä',
+  calculatorChangeSign: 'Vaihda etumerkki',
+  calculatorInvalid: 'Virheellinen laskutoimitus',
   entryAmount: 'Summa',
   entryAccount: 'Tili',
   entryCategory: 'Luokka',

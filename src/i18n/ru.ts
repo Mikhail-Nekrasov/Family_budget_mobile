@@ -203,6 +203,12 @@ export const ru: Messages = {
   saveAccountOrderError: 'Не удалось сохранить порядок счетов',
 
   entryTitle: 'Название',
+  calculator: 'Калькулятор',
+  calculatorUseAmount: 'Подставить сумму',
+  calculatorBackspace: 'Удалить последнюю цифру',
+  calculatorClear: 'Очистить',
+  calculatorChangeSign: 'Изменить знак',
+  calculatorInvalid: 'Невозможно вычислить',
   entryAmount: 'Сумма',
   entryAccount: 'Счёт',
   entryCategory: 'Категория',

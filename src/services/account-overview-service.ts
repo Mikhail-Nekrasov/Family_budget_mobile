@@ -34,6 +34,7 @@ export function calculateAccountOverview(
   const hidden = rows.filter(({ account }) => account.isHidden);
 
   return {
+    all: rows,
     visible,
     visibleTotal: sumBalances(visible.map(({ amount }) => amount)),
     hiddenTotal: sumBalances(hidden.map(({ amount }) => amount)),

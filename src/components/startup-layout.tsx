@@ -13,12 +13,17 @@ const StartupContext = createContext<((screen: StartupScreen) => void) | null>(n
 
 export function StartupLayout({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(!startupPreloadEnabled);
+  const [progress, setProgress] = useState(0);
   const finished = useRef(false);
   const pending = useRef(new Set<StartupScreen>(STARTUP_SCREENS));
 
   const markReady = useCallback((screen: StartupScreen) => {
     if (finished.current) return;
-    if (pending.current.delete(screen) && pending.current.size === 0) {
+    if (!pending.current.delete(screen)) return;
+
+    setProgress((STARTUP_SCREENS.length - pending.current.size) / STARTUP_SCREENS.length);
+
+    if (pending.current.size === 0) {
       finished.current = true;
       if (__DEV__) console.info('[STARTUP] All menu screens laid out');
       setReady(true);
@@ -41,7 +46,7 @@ export function StartupLayout({ children }: { children: ReactNode }) {
   return (
     <StartupContext.Provider value={startupPreloadEnabled ? markReady : null}>
       {children}
-      <AnimatedSplashOverlay ready={ready} />
+      <AnimatedSplashOverlay ready={ready} progress={progress} />
     </StartupContext.Provider>
   );
 }

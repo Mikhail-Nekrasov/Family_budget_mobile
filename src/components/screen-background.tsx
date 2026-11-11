@@ -1,9 +1,9 @@
 import type { PropsWithChildren } from 'react';
 import {
-    Image,
-    StyleSheet,
-    View,
-    useColorScheme,
+  Image,
+  StyleSheet,
+  View,
+  useColorScheme,
 } from 'react-native';
 
 export function ScreenBackground({
@@ -20,15 +20,17 @@ export function ScreenBackground({
         },
       ]}
     >
-      {!dark && (
-        <Image
-          source={require('../../assets/images/bears-background.png')}
-          style={styles.image}
-          resizeMode="cover"
-          accessible={false}
-          pointerEvents="none"
-        />
-      )}
+      <Image
+        source={
+          dark
+            ? require('../../assets/images/bears-background-dark.png')
+            : require('../../assets/images/bears-background.png')
+        }
+        style={styles.image}
+        resizeMode="cover"
+        accessible={false}
+        pointerEvents="none"
+      />
 
       {children}
     </View>

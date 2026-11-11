@@ -75,7 +75,9 @@ export default function AccountOverviewScreen() {
   const overview = useMemo(() => data && currency
     ? calculateAccountOverview(data.accounts, currency, data.snapshot)
     : null, [data, currency]);
-  const segments: ChartSegment[] = overview?.visible.flatMap(({ account, amount }) => {
+  const chartAccounts = showHidden ? overview?.all : overview?.visible;
+  const chartTotal = showHidden ? overview?.allTotal : overview?.visibleTotal;
+  const segments: ChartSegment[] = chartAccounts?.flatMap(({ account, amount }) => {
     if (amount === null || amount === 0) return [];
     return [{
       id: account.syncId,
@@ -104,16 +106,16 @@ export default function AccountOverviewScreen() {
             <>
               <View style={styles.chart}>
                 <CategoryChart
-                  key={currency ?? 'loading'}
+                  key={`${currency ?? 'loading'}:${showHidden}`}
                   segments={segments}
                   label={translations.accountOverviewTotal}
-                  totalAmountMinor={overview?.visibleTotal ?? 0}
+                  totalAmountMinor={chartTotal ?? 0}
                   currencyCode={currency ?? 'EUR'}
                   textColor={palette.text}
                   mutedColor={palette.muted}
                   trackColor={palette.line}
                   size={chartSize}
-                  available={overview?.visibleTotal != null}
+                  available={chartTotal != null}
                   loading={!overview}
                 />
               </View>
@@ -139,10 +141,6 @@ export default function AccountOverviewScreen() {
                   onValueChange={setShowHidden}
                 />
               </View>
-              {showHidden && overview && (overview.allTotal === null || overview.hiddenTotal === null) &&
-                overview.visibleTotal !== null && (
-                  <Text style={[styles.message, { color: palette.muted }]}>{translations.conversionUnavailable}</Text>
-                )}
             </>
           )}
           <View style={styles.footer}>
@@ -161,7 +159,7 @@ export default function AccountOverviewScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 20, gap: 16 },
-  chart: { alignItems: 'center' },
+  chart: { alignItems: 'center', marginBottom: 28 },
   totals: { gap: 8 },
   balanceRow: {
     flexDirection: 'row',
