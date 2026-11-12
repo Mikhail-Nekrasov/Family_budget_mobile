@@ -28,6 +28,7 @@ import { getCategoryName } from '@/utils/category-name';
 import {
   currentMonthPeriod,
   formatEntryPeriod,
+  initialEntryDateForPeriod,
   periodBounds,
   shiftPeriod
 } from '@/utils/entry-period';
@@ -60,6 +61,7 @@ export default function HomeScreen() {
   const [accountIds, setAccountIds] = useState<string[]>([]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [createVisible, setCreateVisible] = useState(false);
+  const [initialEntryDate, setInitialEntryDate] = useState<Date>();
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
 
   const database = useSQLiteContext();
@@ -302,6 +304,7 @@ export default function HomeScreen() {
                 }
                 onPress={() => {
                   setEditingEntry(null);
+                  setInitialEntryDate(initialEntryDateForPeriod(period));
                   setCreateVisible(true);
                 }}
                 style={[
@@ -424,6 +427,7 @@ export default function HomeScreen() {
             <EntryForm
               type={editingEntry?.type ?? type}
               entry={editingEntry ?? undefined}
+              initialDate={editingEntry ? undefined : initialEntryDate}
               onSaved={() => setCreateVisible(false)}
               onCancel={() => setCreateVisible(false)}
             />

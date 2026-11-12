@@ -3,13 +3,13 @@ import { useId, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
-  Text,
   View,
-  useWindowDimensions,
   type GestureResponderEvent,
 } from 'react-native';
 import Svg, { Circle, Defs, G, Pattern } from 'react-native-svg';
 
+import { ChartCenter } from '@/components/chart-center';
+import { NEGATIVE_SECTOR_COLOR } from '@/constants/chart-colors';
 import { formatMoney } from '@/utils/format-money';
 import { playSelectionFeedback } from '@/utils/haptic-feedback';
 
@@ -33,16 +33,9 @@ type Props = {
   totalAmountMinor?: number;
 };
 
-const NEGATIVE_SECTOR_COLOR = '#FF173E';
-const AMOUNT_FONT_SIZE = 25;
 
 export function CategoryChart({ segments, label, currencyCode, textColor, mutedColor, trackColor, size = 240, available = true, loading = false, totalAmountMinor }: Props) {
   const { locale, translations } = useLanguage();
-  const { fontScale } = useWindowDimensions();
-  const amountHeight = Math.ceil(32 * fontScale);
-  const amountOffset = AMOUNT_FONT_SIZE * fontScale / 2;
-  const labelGap = 6;
-
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const dotPatternId = `category-dots-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
@@ -240,32 +233,13 @@ export function CategoryChart({ segments, label, currencyCode, textColor, mutedC
             );
           })}
         </Svg>
-        <View style={styles.center} pointerEvents="none">
-          <Text
-            numberOfLines={2}
-            style={[
-              styles.label,
-              { color: mutedColor, marginBottom: amountHeight / 1.5 + labelGap - amountOffset },
-            ]}
-          >
-            {shownLabel}
-          </Text>
-          <View style={[styles.amountSlot, { height: amountHeight, marginTop: amountOffset - amountHeight / 1.5 }]}>
-            <Text
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.55}
-              style={[styles.total, { color: textColor }]}
-            >
-              {available ? shownAmount : '—'}
-            </Text>
-          </View>
-          {!available && (
-            <Text style={[styles.notice, { color: mutedColor, marginTop: amountOffset + amountHeight / 2 + labelGap }]}>
-              {loading ? translations.loading : translations.conversionUnavailable}
-            </Text>
-          )}
-        </View>
+        <ChartCenter
+          label={shownLabel}
+          amount={available ? shownAmount : '—'}
+          textColor={textColor}
+          mutedColor={mutedColor}
+          notice={available ? undefined : loading ? translations.loading : translations.conversionUnavailable}
+        />
 
         {canSelect && (
           <Pressable
@@ -289,29 +263,4 @@ const styles = StyleSheet.create({
   chart: {
     position: 'relative'
   },
-  center: { ...StyleSheet.absoluteFill, left: '17%', right: '17%' },
-  amountSlot: {
-    position: 'absolute',
-    top: '50%',
-    left: 0,
-    right: 0,
-    justifyContent: 'center',
-  },
-  notice: {
-    position: 'absolute',
-    top: '50%',
-    left: 0,
-    right: 0,
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  label: {
-    position: 'absolute',
-    bottom: '50%',
-    left: 0,
-    right: 0,
-    fontSize: 13,
-    textAlign: 'center',
-  },
-  total: { textAlign: 'center', fontSize: AMOUNT_FONT_SIZE, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });

@@ -1,5 +1,3 @@
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   Pressable,
   StyleSheet,
@@ -8,6 +6,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
+import { EntryCardSurface } from '@/components/entry-card-surface';
 import { IconBadge } from '@/components/icons/icon-badge';
 
 type EntryCardProps = {
@@ -24,7 +23,7 @@ type EntryCardProps = {
   income: boolean;
   accessibilityLabel: string;
   onLayout?: () => void;
-  onPress: () => void;
+  onPress?: () => void;
 };
 
 export function EntryCard({
@@ -52,10 +51,6 @@ export function EntryCard({
         accent: '#A0B8FF',
         icon: '#29354B',
         income: '#7BD4B0',
-        edgeTop: 'rgba(255, 255, 255, 0.45)',
-        edgeLeft: 'rgba(255, 255, 255, 0.25)',
-        edgeShadow: 'rgba(255, 255, 255, 0.12)',
-        highlight: 'rgba(255, 255, 255, 0.18)',
       }
     : {
         text: '#192238',
@@ -63,68 +58,11 @@ export function EntryCard({
         accent: '#365BBC',
         icon: '#EAF0FC',
         income: '#217E5D',
-        edgeTop: 'rgba(255, 255, 255, 0.95)',
-        edgeLeft: 'rgba(255, 255, 255, 0.75)',
-        edgeShadow: 'rgba(54, 91, 188, 0.18)',
-        highlight: 'rgba(255, 255, 255, 0.65)',
       };
 
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      onPress={onPress}
-      onLayout={onLayout}
-      style={({ pressed }) => [
-        styles.card,
-        { opacity: pressed ? 0.75 : 1 },
-      ]}
-    >
-      <BlurView
-        intensity={15}
-        tint="default"
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          styles.blur,
-        ]}
-      />
-
-      <View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            backgroundColor: dark
-              ? 'rgba(100, 140, 220, 0.12)'
-              : 'rgba(100, 140, 220, 0.08)',
-          },
-        ]}
-      />
-
-      <LinearGradient
-        colors={[
-          palette.highlight,
-          'rgba(255, 255, 255, 0)',
-        ]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        pointerEvents="none"
-        style={styles.highlight}
-      />
-
-      <View
-        pointerEvents="none"
-        style={[
-          styles.edge,
-          {
-            borderTopColor: palette.edgeTop,
-            borderLeftColor: palette.edgeLeft,
-            borderRightColor: palette.edgeShadow,
-            borderBottomColor: palette.edgeShadow,
-          },
-        ]}
-      />
+  const content = (
+    <>
+      <EntryCardSurface />
 
       <View
         accessible
@@ -189,6 +127,26 @@ export function EntryCard({
           {currencySymbol}
         </Text>
       </View>
+    </>
+  );
+
+  if (!onPress) {
+    return (
+      <View accessibilityLabel={accessibilityLabel} onLayout={onLayout} style={styles.card}>
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      onLayout={onLayout}
+      style={({ pressed }) => [styles.card, { opacity: pressed ? 0.75 : 1 }]}
+    >
+      {content}
     </Pressable>
   );
 }
@@ -202,26 +160,6 @@ const styles = StyleSheet.create({
     padding: 14,
     minHeight: 62,
     overflow: 'hidden',
-  },
-  blur: {
-    opacity: 0.7,
-  },
-  highlight: {
-    position: 'absolute',
-    top: 1,
-    left: 1,
-    right: 1,
-    height: '5%',
-    borderRadius: 15,
-  },
-  edge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    borderRadius: 16,
-    borderWidth: 1,
   },
   accountIcon: {
     width: 44,

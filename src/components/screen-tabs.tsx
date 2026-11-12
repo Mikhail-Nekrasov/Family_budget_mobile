@@ -25,6 +25,7 @@ type ScreenTabsProps<Value extends string> = {
   value: Value;
   onChange: (value: Value) => void;
   style?: StyleProp<ViewStyle>;
+  singleLine?: boolean;
 };
 
 export function ScreenTabs<Value extends string>({
@@ -32,6 +33,7 @@ export function ScreenTabs<Value extends string>({
   value,
   onChange,
   style,
+  singleLine = false,
 }: ScreenTabsProps<Value>) {
   const dark = useColorScheme() === 'dark';
   const useNativeGlass =
@@ -140,6 +142,9 @@ export function ScreenTabs<Value extends string>({
               )
             )}
             <Text
+              numberOfLines={singleLine ? 1 : undefined}
+              adjustsFontSizeToFit={singleLine}
+              minimumFontScale={singleLine ? 0.7 : undefined}
               style={[
                 styles.label,
                 {

@@ -9,7 +9,7 @@ import { CategoryChart, type ChartSegment } from '@/components/category-chart';
 import { CurrencyPickerButton } from '@/components/currency-picker-button';
 import { ScreenBackground } from '@/components/screen-background';
 import type { CurrencyCode } from '@/constants/currencies';
-import { dashboardChartSize, useHomeChartOffset } from '@/hooks/use-home-chart-offset';
+import { useHomeChartOffset } from '@/hooks/use-home-chart-offset';
 import { useLanguage } from '@/hooks/use-language';
 import type { Account } from '@/models/account';
 import type { ExchangeRateSnapshot } from '@/models/exchange-rate-snapshot';
@@ -17,6 +17,7 @@ import { getAccounts, getArchivedAccounts } from '@/repositories/account-reposit
 import { getExchangeRateSnapshot } from '@/repositories/exchange-rate-repository';
 import { getPrimaryCurrency } from '@/repositories/preferences-repository';
 import { calculateAccountOverview } from '@/services/account-overview-service';
+import { analyticsChartSize } from '@/utils/analytics-chart-size';
 import { formatMoney } from '@/utils/format-money';
 
 const BALANCE_ROW_PADDING = 16;
@@ -34,7 +35,7 @@ export default function AccountOverviewScreen() {
   const dark = useColorScheme() === 'dark';
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const chartSize = dashboardChartSize(width, insets.left, insets.right);
+  const chartSize = analyticsChartSize(width, insets.left, insets.right);
   const chartTop = useHomeChartOffset();
   const [data, setData] = useState<OverviewData | null>(null);
   const [failed, setFailed] = useState(false);
@@ -77,7 +78,7 @@ export default function AccountOverviewScreen() {
     : null, [data, currency]);
   const chartAccounts = showHidden ? overview?.all : overview?.visible;
   const chartTotal = showHidden ? overview?.allTotal : overview?.visibleTotal;
-  const segments: ChartSegment[] = chartAccounts?.flatMap(({ account, amount }) => {
+  const accountSegments: ChartSegment[] = chartAccounts?.flatMap(({ account, amount }) => {
     if (amount === null || amount === 0) return [];
     return [{
       id: account.syncId,
@@ -86,6 +87,10 @@ export default function AccountOverviewScreen() {
       amountMinor: amount,
     }];
   }) ?? [];
+  const segments = [
+    ...accountSegments.filter(({ amountMinor }) => amountMinor > 0),
+    ...accountSegments.filter(({ amountMinor }) => amountMinor < 0),
+  ];
 
   function formatTotal(amount: number | null | undefined) {
     return amount == null || !currency ? '—' : formatMoney(amount, currency, locale);
@@ -95,6 +100,7 @@ export default function AccountOverviewScreen() {
     <ScreenBackground>
       <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.screen}>
         <ScrollView
+          style={styles.screen}
           contentContainerStyle={[styles.content, { paddingTop: chartTop }]}
           contentInsetAdjustmentBehavior="never"
           automaticallyAdjustContentInsets={false}
@@ -143,14 +149,14 @@ export default function AccountOverviewScreen() {
               </View>
             </>
           )}
-          <View style={styles.footer}>
-            <CurrencyPickerButton
-              label={translations.currency}
-              currency={currency}
-              onCurrencyChange={setSelectedCurrency}
-            />
-          </View>
         </ScrollView>
+        <View style={styles.footer}>
+          <CurrencyPickerButton
+            label={translations.currency}
+            currency={currency}
+            onCurrencyChange={setSelectedCurrency}
+          />
+        </View>
       </SafeAreaView>
     </ScreenBackground>
   );
@@ -182,5 +188,5 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   message: { textAlign: 'center', fontSize: 14 },
-  footer: { marginTop: 'auto', paddingTop: 8 },
+  footer: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
 });

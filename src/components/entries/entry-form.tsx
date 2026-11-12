@@ -55,13 +55,14 @@ import {
   playSelectionFeedback
 } from '@/utils/haptic-feedback';
 import { parseAmountToMinor } from '@/utils/money';
-import { formatAmountInput, stripAmountGrouping } from '@/utils/format-amount-input';
+import { deleteAmountGrouping, formatAmountInput, initialAmountCaret, stripAmountGrouping } from '@/utils/format-amount-input';
 import { rankByRecentUsage } from '@/utils/rank-by-recent-usage';
 
 
 type EntryFormProps = {
   type: EntryType;
   entry?: Entry;
+  initialDate?: Date;
   onSaved: () => void;
   onCancel: () => void;
 };
@@ -71,6 +72,7 @@ type LoadStatus = 'loading' | 'ready' | 'error';
 export function EntryForm({
   type,
   entry,
+  initialDate,
   onSaved,
   onCancel,
 }: EntryFormProps) {
@@ -82,6 +84,16 @@ export function EntryForm({
   const [calculatorVisible, setCalculatorVisible] = useState(false);
   const { width: screenWidth } = useWindowDimensions();
   const [amount, setAmount] = useState('');
+  const [amountSelection, setAmountSelection] = useState<{ start: number; end: number }>();
+  const placedInitialAmountCaret = useRef(false);
+  const formattedAmount = formatAmountInput(amount);
+
+  useEffect(() => {
+    if (!amountSelection) return;
+    // Release the selection after React Native applies it so the caret can move freely.
+    const frame = requestAnimationFrame(() => setAmountSelection(undefined));
+    return () => cancelAnimationFrame(frame);
+  }, [amountSelection]);
   const titleRef = useRef<ComponentRef<typeof TextInput>>(null);
   const amountRef = useRef<ComponentRef<typeof TextInput>>(null);
 
@@ -98,7 +110,7 @@ export function EntryForm({
       return new Date(entry.dateTime);
     }
 
-    const now = new Date();
+    const now = initialDate ? new Date(initialDate) : new Date();
     now.setSeconds(0, 0);
     return now;
   });
@@ -470,12 +482,25 @@ export function EntryForm({
 
                   <TextInput
                     accessibilityLabel={translations.entryAmount}
-                    value={formatAmountInput(amount)}
+                    value={formattedAmount}
                     keyboardType="decimal-pad"
                     editable={!saving}
                     ref={amountRef}
+                    selection={amountSelection}
+                    onFocus={() => {
+                      if (!entry || placedInitialAmountCaret.current) return;
+                      placedInitialAmountCaret.current = true;
+                      const caret = initialAmountCaret(formattedAmount);
+                      setAmountSelection({ start: caret, end: caret });
+                    }}
                     onChangeText={(text) => {
-                      setAmount(stripAmountGrouping(text));
+                      const deletion = deleteAmountGrouping(formattedAmount, text);
+                      if (deletion) {
+                        setAmount(deletion.amount);
+                        setAmountSelection({ start: deletion.caret, end: deletion.caret });
+                      } else {
+                        setAmount(stripAmountGrouping(text));
+                      }
                       clearError('amount');
                     }}
                     style={[

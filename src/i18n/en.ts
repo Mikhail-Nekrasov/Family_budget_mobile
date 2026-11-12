@@ -63,6 +63,12 @@ export const en = {
   ratesLoadError: 'Could not refresh rates · saved rates are shown where available',
   ratesMissing: 'Some rates are missing · connect to the internet and refresh',
 
+  analytics: 'Analytics',
+  analyticsEntriesTitle: (category: string, period: string) => `${category} · ${period}`,
+  analyticsSummary: 'Summary',
+  analyticsSavings: 'Savings',
+  analyticsOverspent: 'Expenses exceeded income for the selected period',
+
   periodTitle: "Period",
   periodDay: 'Day',
   periodWeek: 'Week',

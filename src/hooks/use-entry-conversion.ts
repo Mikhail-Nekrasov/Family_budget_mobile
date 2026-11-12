@@ -22,10 +22,11 @@ type Props = {
   accounts: readonly Account[];
   primaryCurrency: string;
   enabled: boolean;
+  splitByType?: boolean;
 };
 
 export function useEntryConversion({
-  entries, accounts, primaryCurrency, enabled,
+  entries, accounts, primaryCurrency, enabled, splitByType = false,
 }: Props) {
   const database = useSQLiteContext();
   const network = useNetworkState();
@@ -104,11 +105,25 @@ export function useEntryConversion({
   }, [database, requests, enabled, online, appState]);
 
   const totals = useMemo(
-    () => calculateEntryTotals(entries, accounts, primaryCurrency, historical, current),
-    [entries, accounts, primaryCurrency, historical, current],
+    () => splitByType ? null : calculateEntryTotals(entries, accounts, primaryCurrency, historical, current),
+    [entries, accounts, primaryCurrency, historical, current, splitByType],
   );
+  const byType = useMemo(() => {
+    if (!splitByType) return null;
+    const income = entries.filter((entry) => entry.type === 'INCOME');
+    const expenses = entries.filter((entry) => entry.type === 'EXPENSE');
+    return {
+      income: calculateEntryTotals(income, accounts, primaryCurrency, historical, current),
+      expenses: calculateEntryTotals(expenses, accounts, primaryCurrency, historical, current),
+    };
+  }, [entries, accounts, primaryCurrency, historical, current, splitByType]);
   return {
-    ...totals,
+    categoryTotals: totals?.categoryTotals ?? new Map<string, number>(),
+    conversionIncomplete: totals?.conversionIncomplete ??
+      (byType?.income.conversionIncomplete === true || byType?.expenses.conversionIncomplete === true),
+    approximate: totals?.approximate ?? (byType?.income.approximate === true || byType?.expenses.approximate === true),
+    totalMinor: totals?.totalMinor ?? 0,
+    byType,
     loading: refreshingCurrent || refreshingHistory,
   };
 }

@@ -65,6 +65,12 @@ export const ru: Messages = {
   ratesLoadError: 'Не удалось обновить курсы · показаны сохранённые данные, если они есть',
   ratesMissing: 'Некоторых курсов нет · подключитесь к интернету и нажмите «Обновить»',
 
+  analytics: 'Аналитика',
+  analyticsEntriesTitle: (category: string, period: string) => `${category} · ${period}`,
+  analyticsSummary: 'Сводка',
+  analyticsSavings: 'Сбережения',
+  analyticsOverspent: 'За выбранный период расходы превысили доходы',
+
   periodTitle: "Период",
   periodDay: 'День',
   periodWeek: 'Неделя',

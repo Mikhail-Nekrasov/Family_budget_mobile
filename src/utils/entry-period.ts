@@ -153,6 +153,31 @@ export function periodBounds(period: EntryPeriod, now = new Date()): { from?: Da
   return { from, to: end < tomorrow ? end : tomorrow };
 }
 
+export function initialEntryDateForPeriod(period: EntryPeriod, now = new Date()): Date {
+  const { from, to } = periodBounds(period, now);
+  if (!from || !to) return new Date(now);
+
+  let date = from;
+  if (period.kind === 'month' || period.kind === 'year') {
+    const month = period.kind === 'month' ? period.month : now.getMonth();
+    const candidate = localDay(period.year, month, now.getDate());
+    if (candidate.getMonth() === month && candidate >= from && candidate < to) {
+      date = candidate;
+    }
+  }
+
+  if (date === from && period.kind !== 'day') {
+    const start = new Date(Math.max(from.getTime(), entryDateLimits(now).minimumDate.getTime()));
+    const calendarDay = (value: Date) => Date.UTC(value.getFullYear(), value.getMonth(), value.getDate());
+    const days = (calendarDay(to) - calendarDay(start)) / 86_400_000;
+    start.setDate(start.getDate() + Math.floor((days - 1) / 2));
+    date = start;
+  }
+
+  date.setHours(now.getHours(), now.getMinutes(), 0, 0);
+  return date;
+}
+
 export function shiftPeriod(period: EntryPeriod, direction: -1 | 1, now = new Date()): EntryPeriod {
   if (period.kind === 'all' || period.kind === 'range') {
     return period;

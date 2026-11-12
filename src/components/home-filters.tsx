@@ -1,6 +1,6 @@
 import { useLanguage } from '@/hooks/use-language';
 import { playSelectionFeedback } from '@/utils/haptic-feedback';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,6 +13,7 @@ type Props = {
   onAccountsChange: (ids: string[]) => void;
   onCategoriesChange?: (ids: string[]) => void;
   accountOptions: Option[];
+  renderAccountTrigger?: (open: () => void) => ReactNode;
   categoryOptions?: Option[];
   periodFilter?: PeriodFilter;
   palette: { card: string; text: string; muted: string; accent: string; line: string };
@@ -24,6 +25,7 @@ export function HomeFilters({
   onAccountsChange,
   onCategoriesChange,
   accountOptions,
+  renderAccountTrigger,
   categoryOptions = [],
   periodFilter,
   palette,
@@ -56,41 +58,45 @@ export function HomeFilters({
 
   return (
     <>
-      <View style={styles.row}>
-        <Pressable accessibilityRole="button" onPress={() => openFilter('accounts')}
-          style={[styles.chip, { backgroundColor: palette.card, borderColor: accountIds.length ? palette.accent : palette.line }]}>
-          <Text style={{ color: palette.text }}>
-            {accountIds.length
-              ? translations.selectedAccounts(accountIds.length)
-              : translations.allAccounts} ▾
-          </Text>
-        </Pressable>
-        {periodFilter ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={periodFilter.onPress}
-            style={[
-              styles.chip,
-              { backgroundColor: palette.card, borderColor: periodFilter.active ? palette.accent : palette.line },
-            ]}
-          >
-            <Text numberOfLines={1} style={{ color: palette.text }}>{periodFilter.label} ▾</Text>
-          </Pressable>
-        ) : (
-          <Pressable accessibilityRole="button" onPress={() => openFilter('categories')}
-            style={[styles.chip, { backgroundColor: palette.card, borderColor: categoryIds.length ? palette.accent : palette.line }]}>
-            <Text style={{ color: palette.text }}>
-              {categoryIds.length
-                ? translations.selectedCategories(categoryIds.length)
-                : translations.allCategories} ▾
-            </Text>
-          </Pressable>
-        )}
-      </View>
-      {(accountIds.length > 0 || categoryIds.length > 0 || periodFilter?.active) && (
-        <Pressable accessibilityRole="button" style={styles.reset} onPress={() => { onAccountsChange([]); onCategoriesChange?.([]); periodFilter?.onReset(); }}>
-          <Text style={{ color: palette.accent }}>{translations.resetFilters}</Text>
-        </Pressable>
+      {renderAccountTrigger ? renderAccountTrigger(() => openFilter('accounts')) : (
+        <>
+          <View style={styles.row}>
+            <Pressable accessibilityRole="button" onPress={() => openFilter('accounts')}
+              style={[styles.chip, { backgroundColor: palette.card, borderColor: accountIds.length ? palette.accent : palette.line }]}>
+              <Text style={{ color: palette.text }}>
+                {accountIds.length
+                  ? translations.selectedAccounts(accountIds.length)
+                  : translations.allAccounts} ▾
+              </Text>
+            </Pressable>
+            {periodFilter ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={periodFilter.onPress}
+                style={[
+                  styles.chip,
+                  { backgroundColor: palette.card, borderColor: periodFilter.active ? palette.accent : palette.line },
+                ]}
+              >
+                <Text numberOfLines={1} style={{ color: palette.text }}>{periodFilter.label} ▾</Text>
+              </Pressable>
+            ) : (
+              <Pressable accessibilityRole="button" onPress={() => openFilter('categories')}
+                style={[styles.chip, { backgroundColor: palette.card, borderColor: categoryIds.length ? palette.accent : palette.line }]}>
+                <Text style={{ color: palette.text }}>
+                  {categoryIds.length
+                    ? translations.selectedCategories(categoryIds.length)
+                    : translations.allCategories} ▾
+                </Text>
+              </Pressable>
+            )}
+          </View>
+          {(accountIds.length > 0 || categoryIds.length > 0 || periodFilter?.active) && (
+            <Pressable accessibilityRole="button" style={styles.reset} onPress={() => { onAccountsChange([]); onCategoriesChange?.([]); periodFilter?.onReset(); }}>
+              <Text style={{ color: palette.accent }}>{translations.resetFilters}</Text>
+            </Pressable>
+          )}
+        </>
       )}
       <Modal visible={active !== null} transparent animationType="slide" onRequestClose={() => setActive(null)}>
         <View style={styles.overlay}>

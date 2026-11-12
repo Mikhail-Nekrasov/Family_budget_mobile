@@ -26,7 +26,8 @@ import {
 type Props = {
   visible: boolean;
   value: EntryPeriod;
-  type: EntryType | 'TRANSFER';
+  rangeOnly?: boolean;
+  type: EntryType | 'TRANSFER' | 'SUMMARY';
   onApply: (period: EntryPeriod) => void;
   onCancel: () => void;
 };
@@ -71,10 +72,10 @@ export function PeriodSelector(props: Props) {
   );
 }
 
-function PeriodForm({ value, type, onApply, onCancel }: Props) {
+function PeriodForm({ value, type, rangeOnly = false, onApply, onCancel }: Props) {
   const { translations, locale } = useLanguage();
   const dark = useColorScheme() === 'dark';
-  const [draft, setDraft] = useState<EntryPeriod>(value);
+  const [draft, setDraft] = useState<EntryPeriod>(() => rangeOnly ? rangeFromPeriod(value) : value);
   const [stage, setStage] = useState<PickerStage>(null);
   const [year, setYear] = useState(() => anchorDate(value).getFullYear());
   const [month, setMonth] = useState(() => anchorDate(value).getMonth());
@@ -291,12 +292,14 @@ const selectedMonth = Math.min(month, lastMonth);
           </ScrollView>
         ) : (
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            <Text style={[styles.description, { color: palette.text }]}>
-              {type === 'TRANSFER'
-                ? translations.periodTransfersFor
-                : type === 'EXPENSE' ? translations.periodExpensesFor : translations.periodIncomeFor}
-            </Text>
-            {modes.map((mode) => (
+            {type !== 'SUMMARY' && (
+              <Text style={[styles.description, { color: palette.text }]}>
+                {type === 'TRANSFER'
+                  ? translations.periodTransfersFor
+                  : type === 'EXPENSE' ? translations.periodExpensesFor : translations.periodIncomeFor}
+              </Text>
+            )}
+            {!rangeOnly && modes.map((mode) => (
               <Pressable
                 key={mode.value}
                 accessibilityRole="radio"
@@ -350,6 +353,14 @@ const selectedMonth = Math.min(month, lastMonth);
             <Text style={[styles.summary, { color: palette.muted }]}>
               {formatEntryPeriod(draft, locale, translations.periodAllTime)}
             </Text>
+            {rangeOnly && (
+              <AppButton
+                title={translations.periodAllTime}
+                keepTitleCentered
+                nativeGlass
+                onPress={() => onApply({ kind: 'all' })}
+              />
+            )}
             <FieldError message={errors.range} />
           </ScrollView>
         )}

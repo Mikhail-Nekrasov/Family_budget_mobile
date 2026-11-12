@@ -65,6 +65,12 @@ export const fi: Messages = {
   ratesLoadError: 'Kursseja ei voitu päivittää · tallennetut kurssit näkyvät, jos niitä on',
   ratesMissing: 'Osa kursseista puuttuu · yhdistä internetiin ja päivitä',
 
+  analytics: 'Analytiikka',
+  analyticsEntriesTitle: (category: string, period: string) => `${category} · ${period}`,
+  analyticsSummary: 'Yhteenveto',
+  analyticsSavings: 'Säästöt',
+  analyticsOverspent: 'Valitun ajanjakson menot ylittivät tulot',
+
   periodTitle: "Ajanjakso",
   periodDay: 'Päivä',
   periodWeek: 'Viikko',
