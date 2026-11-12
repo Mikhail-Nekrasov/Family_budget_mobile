@@ -11,6 +11,8 @@ import {
   Text,
   View,
   useColorScheme,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 
 type TabOption<Value extends string> = {
@@ -22,12 +24,14 @@ type ScreenTabsProps<Value extends string> = {
   options: readonly TabOption<Value>[];
   value: Value;
   onChange: (value: Value) => void;
+  style?: StyleProp<ViewStyle>;
 };
 
 export function ScreenTabs<Value extends string>({
   options,
   value,
   onChange,
+  style,
 }: ScreenTabsProps<Value>) {
   const dark = useColorScheme() === 'dark';
   const useNativeGlass =
@@ -52,6 +56,7 @@ export function ScreenTabs<Value extends string>({
       style={[
         styles.container,
         { borderBottomColor: palette.line },
+        style,
       ]}
     >
       {options.map((option) => {

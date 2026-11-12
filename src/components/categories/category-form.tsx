@@ -17,15 +17,14 @@ import { AppButton } from '@/components/app-button';
 import { CategoryIcon } from '@/components/categories/category-icon';
 import { CompactIconSelect } from '@/components/compact-icon-select';
 import { FieldError } from '@/components/field-error';
+import type { IconSelectPage } from '@/components/icon-option-pager';
 import { IconColorSelect } from '@/components/icons/icon-color-select';
 import { ScreenBackground } from '@/components/screen-background';
+import { CATEGORY_ICON_SECTIONS } from '@/constants/category-icon-catalog';
 import {
-  CATEGORY_ICON_PATHS,
-  EXPENSE_CATEGORY_ICON_KEYS,
   getOtherCategoryIconKey,
-  INCOME_CATEGORY_ICON_KEYS,
-  type CategoryIconKey,
 } from '@/constants/category-icons';
+import { DEFAULT_CATEGORIES } from '@/constants/default-categories';
 import { defaultCategoryIconColor } from '@/constants/icon-colors';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { useLanguage } from '@/hooks/use-language';
@@ -72,19 +71,41 @@ export function CategoryForm({
     category?.iconKey ?? getOtherCategoryIconKey(type),
   );
 
-  const iconOptions: CategoryIconKey[] = type === 'INCOME'
-    ? [...INCOME_CATEGORY_ICON_KEYS]
-    : [...EXPENSE_CATEGORY_ICON_KEYS];
+  const groupTypes: readonly EntryType[] = type === 'INCOME'
+    ? ['INCOME', 'EXPENSE']
+    : ['EXPENSE', 'INCOME'];
+  const defaultGroups = groupTypes.map((groupType) => ({
+    id: groupType,
+    title: groupType === 'INCOME' ? translations.income : translations.expenses,
+    options: DEFAULT_CATEGORIES
+      .filter((definition) => definition.type === groupType)
+      .sort((first, second) => first.sortOrder - second.sortOrder)
+      .map(({ iconKey: key }) => ({
+        value: key,
+        label: translations.categoryIcons[key],
+      })),
+  }));
+  const extraIconPages = CATEGORY_ICON_SECTIONS.map((section) => ({
+    id: section.id,
+    title: section.title[language],
+    options: section.icons.map((icon) => ({
+      value: icon.key,
+      label: icon.label[language],
+    })),
+  }));
+  const iconPages: IconSelectPage[] = [
+    ...extraIconPages,
+    {
+      id: 'defaults',
+      title: translations.defaultCategoryIcons,
+      groups: defaultGroups,
+    },
+  ];
+  const iconOptions = [
+    ...defaultGroups.flatMap((group) => group.options),
+    ...extraIconPages.flatMap((page) => page.options),
+  ];
 
-  const savedIconKey = category?.iconKey as CategoryIconKey | undefined;
-
-  if (
-    savedIconKey &&
-    Object.hasOwn(CATEGORY_ICON_PATHS, savedIconKey) &&
-    !iconOptions.includes(savedIconKey)
-  ) {
-    iconOptions.push(savedIconKey);
-  }
   const [iconColor, setIconColor] = useState(
     category
       ? category.iconColor
@@ -321,10 +342,8 @@ export function CategoryForm({
 
             <CompactIconSelect
               title={translations.categoryIcon}
-              options={iconOptions.map((key) => ({
-                value: key,
-                label: translations.categoryIcons[key],
-              }))}
+              options={iconOptions}
+              pages={iconPages}
               value={iconKey}
               onChange={setIconKey}
               disabled={saving}

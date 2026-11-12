@@ -1,5 +1,6 @@
 import Svg, { Path } from 'react-native-svg';
 
+import { EXTRA_CATEGORY_ICON_PATHS } from '@/constants/category-icon-catalog';
 import { CATEGORY_ICON_PATHS } from '@/constants/category-icons';
 
 type CategoryIconProps = {
@@ -13,7 +14,7 @@ function getIconPath(iconKey: string): string {
     return CATEGORY_ICON_PATHS[iconKey as keyof typeof CATEGORY_ICON_PATHS];
   }
 
-  return CATEGORY_ICON_PATHS.otherExpense;
+  return EXTRA_CATEGORY_ICON_PATHS.get(iconKey) ?? CATEGORY_ICON_PATHS.otherExpense;
 }
 
 export function CategoryIcon({
@@ -33,12 +34,12 @@ export function CategoryIcon({
         d={getIconPath(iconKey)}
         fill="none"
         stroke={color}
-                strokeWidth={
+        strokeWidth={
           ({
             car: 1.357,
             transport: 1.4,
             hobbies: 1.1,
-          } as Record<string, number>)[iconKey] ?? 1.7
+          } as Record<string, number>)[iconKey] ?? (EXTRA_CATEGORY_ICON_PATHS.has(iconKey) ? 1.5 : 1.7)
         }
         strokeLinecap="round"
         strokeLinejoin="round"

@@ -5,7 +5,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/app-button';
 import { ScreenBackground } from '@/components/screen-background';
 import { useLanguage } from '@/hooks/use-language';
-import { calculatorAmount, createCalculator, pressCalculatorKey, type CalculatorKey } from '@/utils/entry-calculator';
+import { calculatorAmount, calculatorDisplay, createCalculator, pressCalculatorKey, type CalculatorKey } from '@/utils/entry-calculator';
 import { currencyFractionDigits } from '@/utils/money';
 
 const KEYS = [
@@ -50,6 +50,7 @@ function CalculatorScreen({ amount, currencyCode, onUse, onClose }: Props) {
   const dark = useColorScheme() === 'dark';
   const [state, setState] = useState(() => createCalculator(amount));
   const decimal = new Intl.NumberFormat(locale).format(1.1).replace(/[0-9]/g, '');
+  const display = calculatorDisplay(state, decimal);
   const result = calculatorAmount(state, currencyFractionDigits(currencyCode));
   const palette = dark
     ? { text: '#F0F3FA', muted: '#A8B3C5', key: '#29354B', border: '#333F52', accent: '#A0B8FF', action: '#344979' }
@@ -87,12 +88,20 @@ function CalculatorScreen({ amount, currencyCode, onUse, onClose }: Props) {
           />
           <View style={styles.bottom}>
             <Text
+              accessibilityElementsHidden={!display.completed}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              style={[styles.expression, { color: palette.muted }]}
+            >
+              {display.completed}
+            </Text>
+            <Text
               accessibilityLiveRegion="polite"
               numberOfLines={1}
               adjustsFontSizeToFit
               style={[styles.result, { color: state.error ? palette.muted : palette.text }]}
             >
-              {state.error ? translations.calculatorInvalid : state.input.replace('.', decimal)}
+              {state.error ? translations.calculatorInvalid : display.current}
             </Text>
             {KEYS.map((row, index) => (
               <View key={index} style={styles.row}>
@@ -135,6 +144,7 @@ const styles = StyleSheet.create({
   headerSpacer: { width: 48 },
   content: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
   bottom: { marginTop: 'auto', gap: 8, paddingTop: 16 },
+  expression: { minHeight: 22, textAlign: 'right', fontSize: 17, paddingHorizontal: 8 },
   result: { textAlign: 'right', fontSize: 40, fontWeight: '600', fontVariant: ['tabular-nums'], paddingHorizontal: 8 },
   row: { flexDirection: 'row', gap: 8 },
   key: {

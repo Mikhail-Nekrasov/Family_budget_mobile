@@ -55,6 +55,7 @@ import {
   playSelectionFeedback
 } from '@/utils/haptic-feedback';
 import { parseAmountToMinor } from '@/utils/money';
+import { formatAmountInput, stripAmountGrouping } from '@/utils/format-amount-input';
 import { rankByRecentUsage } from '@/utils/rank-by-recent-usage';
 
 
@@ -66,12 +67,6 @@ type EntryFormProps = {
 };
 
 type LoadStatus = 'loading' | 'ready' | 'error';
-
-function formatAmountInput(value: string): string {
-  return value.replace(/^\d+/, (integerPart) =>
-    integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0'),
-  );
-}
 
 export function EntryForm({
   type,
@@ -480,7 +475,7 @@ export function EntryForm({
                     editable={!saving}
                     ref={amountRef}
                     onChangeText={(text) => {
-                      setAmount(text.replace(/\s/g, ''));
+                      setAmount(stripAmountGrouping(text));
                       clearError('amount');
                     }}
                     style={[

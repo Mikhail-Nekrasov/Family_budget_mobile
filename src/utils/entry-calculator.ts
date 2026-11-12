@@ -1,9 +1,10 @@
+import { formatAmountInput } from '@/utils/format-amount-input';
 import { parseAmountToMinor } from '@/utils/money';
 
 type Operator = '+' | '-' | '*' | '/';
 export type CalculatorKey = Operator | 'back' | 'clear' | 'percent' | 'sign' | 'decimal' | 'equals' | `${number}`;
 type Operation = { value: bigint; operator: Operator };
-export type CalculatorState = { operations: Operation[]; input: string; replace: boolean; error: boolean };
+export type CalculatorState = { operations: Operation[]; input: string; replace: boolean; error: boolean; completedExpression?: string };
 
 const FRACTION_DIGITS = 12;
 const SCALE = 10n ** BigInt(FRACTION_DIGITS);
@@ -20,6 +21,33 @@ function toText(value: bigint): string {
   const absolute = value < 0n ? -value : value;
   const fraction = (absolute % SCALE).toString().padStart(FRACTION_DIGITS, '0').replace(/0+$/, '');
   return `${value < 0n ? '-' : ''}${absolute / SCALE}${fraction ? `.${fraction}` : ''}`;
+}
+
+const OPERATOR_LABELS: Record<Operator, string> = {
+  '+': '+',
+  '-': '−',
+  '*': '×',
+  '/': '÷',
+};
+
+function expressionText(operations: Operation[], input: string): string {
+  return operations.map(({ value, operator }) =>
+    `${toText(value)} ${OPERATOR_LABELS[operator]} `,
+  ).join('') + input;
+}
+
+export function calculatorDisplay(state: CalculatorState, decimal: string) {
+  const localize = (value: string) => value.replace(/-?\d+(?:\.\d*)?/g,
+    (number) => formatAmountInput(number).replace('.', decimal).replace('-', '−'),
+  );
+
+  return {
+    current: localize(expressionText(
+      state.operations,
+      state.replace && state.operations.length ? '' : state.input,
+    ).trimEnd()),
+    completed: localize(state.completedExpression ?? ''),
+  };
 }
 
 function evaluate(operations: Operation[], last: bigint): bigint | null {
@@ -76,11 +104,19 @@ export function pressCalculatorKey(state: CalculatorState, key: CalculatorKey): 
       : state;
   }
   if (key === 'equals') {
+    if (state.completedExpression) return state;
     const value = calculatorResult(state);
+    const operations = state.replace ? state.operations.slice(0, -1) : state.operations;
     return value === null
       ? { ...createCalculator(), error: true }
-      : { ...createCalculator(), input: toText(value), replace: true };
+      : {
+          ...createCalculator(),
+          input: toText(value),
+          replace: true,
+          completedExpression: operations.length ? expressionText(operations, state.input) : undefined,
+        };
   }
+  state = state.completedExpression ? { ...state, completedExpression: undefined } : state;
   if (key === '+' || key === '-' || key === '*' || key === '/') {
     const operations = state.replace && state.operations.length ? state.operations.slice(0, -1) : state.operations;
     if (operations.length >= MAX_OPERATIONS) return state;

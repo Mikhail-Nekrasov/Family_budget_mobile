@@ -30,6 +30,7 @@ import { buildRateListRows, readRateList } from '@/services/exchange-rate-list-s
 import { isEntryDateAllowed, MIN_PERIOD_YEAR } from '@/utils/entry-period';
 import { playCompletionFeedback } from '@/utils/haptic-feedback';
 import { currencyFractionDigits, parseAmountToMinor, rateFromAmounts } from '@/utils/money';
+import { formatAmountInput, stripAmountGrouping } from '@/utils/format-amount-input';
 
 export type TransferSelection = { fromId: string | null; toId: string | null };
 
@@ -285,8 +286,8 @@ export function TransferForm({ accounts, initialSelection, transfer, onSavingCha
               </Text>
               <TextInput
                 accessibilityLabel={crossCurrency ? translations.transferDebit : translations.entryAmount}
-                value={amount}
-                onChangeText={(value) => { setAmount(value); clearError('amount'); }}
+                value={formatAmountInput(amount)}
+                onChangeText={(value) => { setAmount(stripAmountGrouping(value)); clearError('amount'); }}
                 keyboardType="decimal-pad"
                 editable={!saving}
                 style={inputStyle}
@@ -301,8 +302,8 @@ export function TransferForm({ accounts, initialSelection, transfer, onSavingCha
                 </Text>
                 <TextInput
                   accessibilityLabel={translations.transferCredit}
-                  value={targetAmount}
-                  onChangeText={(value) => changeQuote('target', value)}
+                  value={formatAmountInput(targetAmount)}
+                  onChangeText={(value) => changeQuote('target', stripAmountGrouping(value))}
                   keyboardType="decimal-pad"
                   editable={!saving}
                   style={inputStyle}
@@ -315,8 +316,8 @@ export function TransferForm({ accounts, initialSelection, transfer, onSavingCha
                 <View style={styles.rateRow}>
                   <TextInput
                     accessibilityLabel={translations.transferRate}
-                    value={rate}
-                    onChangeText={(value) => changeQuote('rate', value)}
+                    value={formatAmountInput(rate)}
+                    onChangeText={(value) => changeQuote('rate', stripAmountGrouping(value))}
                     keyboardType="decimal-pad"
                     editable={!saving}
                     style={[inputStyle, styles.rateField]}

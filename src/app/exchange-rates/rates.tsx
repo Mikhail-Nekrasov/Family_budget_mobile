@@ -31,9 +31,14 @@ export default function ExchangeRatesScreen() {
     historical ? localDateKey(date) : null,
   );
   const rows = useMemo(
-    () => !localReady || currency === null ? [] : buildRateListRows(data, currency),
-    [data, currency, localReady],
+    () => {
+      if (!localReady || currency === null) return [];
+      const rateRows = buildRateListRows(data, currency);
+      return loading ? rateRows.filter((row) => row.rate !== null) : rateRows;
+    },
+    [data, currency, loading, localReady],
   );
+  const hasNotices = !online || (!loading && failed) || (preferencesFailed && currency === null);
   const muted = dark ? '#A8B3C5' : '#6C7890';
 
   const markStartupLayout = useStartupScreenLayout(
@@ -44,42 +49,42 @@ export default function ExchangeRatesScreen() {
   return (
     <ScreenBackground>
       <SafeAreaView edges={['left', 'right']} style={styles.screen}>
+        <View style={styles.header}>
+          <RateFilters
+            currency={currency}
+            onCurrencyChange={setCurrency}
+            historical={historical}
+            onHistoricalChange={setHistorical}
+            date={date}
+            onDateChange={setDate}
+          />
+          {!historical && (
+            <AppButton
+              title={translations.ratesRefresh}
+              keepTitleCentered
+              rightIcon="refresh"
+              nativeGlass
+              disabled={!online}
+              loading={loading}
+              onPress={refresh}
+            />
+          )}
+        </View>
         <FlatList
+          style={styles.screen}
           data={rows}
           keyExtractor={(row) => row.currencyCode}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
-          ListHeaderComponent={
-            <View style={styles.header}>
-              <RateFilters
-                currency={currency}
-                onCurrencyChange={setCurrency}
-                historical={historical}
-                onHistoricalChange={setHistorical}
-                date={date}
-                onDateChange={setDate}
-              />
-              {!historical && (
-                <AppButton
-                  title={translations.ratesRefresh}
-                  keepTitleCentered
-                  rightIcon="refresh"
-                  nativeGlass
-                  disabled={!online}
-                  loading={loading}
-                  onPress={refresh}
-                />
-              )}
+          ListHeaderComponent={hasNotices ? (
+            <View style={styles.notices}>
               {!online && <Text style={[styles.message, { color: muted }]}>{translations.ratesOffline}</Text>}
-              {failed && <Text accessibilityRole="alert" style={[styles.message, { color: muted }]}>{translations.ratesLoadError}</Text>}
+              {!loading && failed && <Text accessibilityRole="alert" style={[styles.message, { color: muted }]}>{translations.ratesLoadError}</Text>}
               {preferencesFailed && currency === null && (
                 <Text style={[styles.message, { color: muted }]}>{translations.loadPreferencesError}</Text>
               )}
-              {!loading && currency !== null && rows.some((row) => row.rate === null) && (
-                <Text style={[styles.message, { color: muted }]}>{translations.ratesMissing}</Text>
-              )}
             </View>
-          }
+          ) : undefined}
           renderItem={({ item, index }) => (
             <ExchangeRateCard
               row={item}
@@ -100,13 +105,15 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 12,
     gap: 10,
   },
   header: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 14,
     gap: 12,
-    paddingBottom: 4,
   },
+  notices: { gap: 12 },
   message: {
     fontSize: 14,
   },

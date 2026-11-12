@@ -219,6 +219,7 @@ export const fi: Messages = {
   saveEntryError: 'Tapahtumaa ei voitu tallentaa',
 
   categoryIcon: 'Luokan kuvake',
+  defaultCategoryIcons: 'Oletusluokat',
   categoryIcons: {
     otherExpense: 'Muut',
     otherIncome: 'Muut',

@@ -217,6 +217,7 @@ export const en = {
   saveEntryError: 'Could not save the entry',
 
   categoryIcon: 'Category icon',
+  defaultCategoryIcons: 'Default categories',
   categoryIcons: {
     otherExpense: 'Other',
     otherIncome: 'Other',

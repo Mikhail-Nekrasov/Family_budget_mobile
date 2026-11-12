@@ -219,6 +219,7 @@ export const ru: Messages = {
   saveEntryError: 'Не удалось сохранить операцию',
 
   categoryIcon: 'Иконка категории',
+  defaultCategoryIcons: 'Категории по умолчанию',
   categoryIcons: {
     otherExpense: 'Другое',
     otherIncome: 'Другое',

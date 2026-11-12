@@ -40,6 +40,7 @@ export default function SettingsLayout() {
         name="language"
         options={{
           title: translations.language,
+          headerBackButtonDisplayMode: 'minimal',
         }}
       />
 
@@ -47,6 +48,7 @@ export default function SettingsLayout() {
         name="primary-currency"
         options={{
           title: translations.primaryCurrency,
+          headerBackButtonDisplayMode: 'minimal',
         }}
       />
     </Stack>

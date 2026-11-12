@@ -42,6 +42,7 @@ import {
 } from '@/repositories/account-repository';
 import { playCompletionFeedback } from '@/utils/haptic-feedback';
 import { parseAmountToMinor } from '@/utils/money';
+import { formatAmountInput, stripAmountGrouping } from '@/utils/format-amount-input';
 
 
 type Props = {
@@ -353,9 +354,9 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
                   <TextInput
                     ref={openingBalanceRef}
                     accessibilityLabel={translations.openingBalance}
-                    value={openingBalance}
+                    value={formatAmountInput(openingBalance)}
                     onChangeText={(text) => {
-                      setOpeningBalance(text);
+                      setOpeningBalance(stripAmountGrouping(text));
                       clearError('openingBalance');
                     }}
                     editable={!saving}

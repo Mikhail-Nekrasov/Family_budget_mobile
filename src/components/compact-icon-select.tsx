@@ -15,6 +15,7 @@ import {
 } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
+import { IconOptionPager, type IconSelectPage } from '@/components/icon-option-pager';
 import { ScreenBackground } from '@/components/screen-background';
 import { iconForeground } from '@/constants/icon-colors';
 import { useLanguage } from '@/hooks/use-language';
@@ -28,6 +29,7 @@ export type IconSelectOption = {
 type CompactIconSelectProps = {
   title: string;
   options: readonly IconSelectOption[];
+  pages?: readonly IconSelectPage[];
   value: string | null;
   onChange: (value: string) => void;
   renderIcon: (
@@ -51,6 +53,7 @@ type CompactIconSelectProps = {
 export function CompactIconSelect({
   title,
   options,
+  pages,
   value,
   onChange,
   renderIcon,
@@ -338,46 +341,55 @@ export function CompactIconSelect({
                   {title}
                 </Text>
 
-                <FlatList
-                  data={options}
-                  extraData={pendingValue}
-                  numColumns={4}
-                  keyExtractor={(option) => option.value}
-                  contentContainerStyle={styles.grid}
-                  renderItem={({ item }) => (
-                    <View style={styles.cell}>
-                      {renderOption(item, true)}
-                    </View>
-                  )}
-                  ListFooterComponent={
-                    renderCreateForm ? (
-                      <View style={styles.createRow}>
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={translations.newCategory}
-                          onPress={() => setCreating(true)}
-                          style={({ pressed }) => [
-                            styles.createButton,
-                            {
-                              backgroundColor: palette.accent,
-                              opacity: pressed ? 0.75 : 1,
-                            },
-                          ]}
-                        >
-                          <Text
-                            accessible={false}
-                            style={[
-                              styles.createSymbol,
-                              { color: palette.background },
+                {pages ? (
+                  <IconOptionPager
+                    pages={pages}
+                    pendingValue={pendingValue}
+                    palette={palette}
+                    renderOption={(option) => renderOption(option, true)}
+                  />
+                ) : (
+                  <FlatList
+                    data={options}
+                    extraData={pendingValue}
+                    numColumns={4}
+                    keyExtractor={(option) => option.value}
+                    contentContainerStyle={styles.grid}
+                    renderItem={({ item }) => (
+                      <View style={styles.cell}>
+                        {renderOption(item, true)}
+                      </View>
+                    )}
+                    ListFooterComponent={
+                      renderCreateForm ? (
+                        <View style={styles.createRow}>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={translations.newCategory}
+                            onPress={() => setCreating(true)}
+                            style={({ pressed }) => [
+                              styles.createButton,
+                              {
+                                backgroundColor: palette.accent,
+                                opacity: pressed ? 0.75 : 1,
+                              },
                             ]}
                           >
-                            ＋
-                          </Text>
-                        </Pressable>
-                      </View>
-                    ) : undefined
-                  }
-                />
+                            <Text
+                              accessible={false}
+                              style={[
+                                styles.createSymbol,
+                                { color: palette.background },
+                              ]}
+                            >
+                              ＋
+                            </Text>
+                          </Pressable>
+                        </View>
+                      ) : undefined
+                    }
+                  />
+                )}
 
                 <View style={styles.footer}>
                   <AppButton

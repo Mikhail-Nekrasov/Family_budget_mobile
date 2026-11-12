@@ -42,6 +42,7 @@ export function RateFilters({
   return (
     <>
       <ScreenTabs
+        style={styles.tabs}
         options={[
           { value: 'current', label: translations.ratesCurrent },
           { value: 'historical', label: translations.ratesHistorical },
@@ -112,6 +113,7 @@ export function RateFilters({
 }
 
 const styles = StyleSheet.create({
+  tabs: { flex: 0, flexBasis: 'auto' },
   screen: {
     flex: 1,
   },
