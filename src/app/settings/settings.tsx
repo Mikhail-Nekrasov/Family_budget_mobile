@@ -8,6 +8,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppButton } from '@/components/app-button';
+import { useBudgetAuth } from '@/components/budget-auth';
 import { ScreenBackground } from '@/components/screen-background';
 import { StartupEmptyLayout, useStartupScreenLayout } from '@/components/startup-layout';
 import { usePrimaryCurrencyPreference } from '@/hooks/use-primary-currency-preference';
@@ -23,6 +25,7 @@ const languageNames: Record<Language, string> = {
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { signOut, busy, error, text, user, needsSignIn, reauthenticate } = useBudgetAuth();
   const { language, translations } = useLanguage();
 
   const dark = useColorScheme() === 'dark';
@@ -144,6 +147,12 @@ export default function SettingsScreen() {
               {translations.loadPreferencesError}
             </Text>
           )}
+          {user && <Text style={{ color: palette.text }}>{text.signedInAs}: {user.username}</Text>}
+          {needsSignIn && (
+            <AppButton title={text.signInAgain} onPress={reauthenticate} disabled={busy} />
+          )}
+          {error && <Text style={{ color: palette.text }}>{error}</Text>}
+          <AppButton title={text.signOut} onPress={signOut} disabled={busy} />
         </ScrollView>
         <StartupEmptyLayout onLayout={markStartupLayout} />
       </SafeAreaView>

@@ -5,6 +5,7 @@ import { API_BASE_URL, API_TIMEOUT_MS } from '@/config/api';
 
 type ApiRequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  credentials?: 'include' | 'omit';
   headers?: Record<string, string>;
   body?: string;
 };
@@ -54,7 +55,7 @@ export async function apiRequest(
         method: options.method ?? 'GET',
         headers,
         body: options.body,
-        credentials: 'include',
+        credentials: options.credentials ?? 'include',
         signal: controller.signal,
       },
     );
