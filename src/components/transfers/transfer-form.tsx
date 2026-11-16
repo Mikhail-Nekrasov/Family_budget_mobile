@@ -1,5 +1,5 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Keyboard,
@@ -28,9 +28,9 @@ import { createTransfer, deleteTransfer, updateTransfer } from '@/repositories/t
 import { convertAmountAtRate } from '@/services/currency-conversion-service';
 import { buildRateListRows, readRateList } from '@/services/exchange-rate-list-service';
 import { isEntryDateAllowed, MIN_PERIOD_YEAR } from '@/utils/entry-period';
+import { formatAmountInput, initialAmountCaret, stripAmountGrouping } from '@/utils/format-amount-input';
 import { playCompletionFeedback } from '@/utils/haptic-feedback';
 import { currencyFractionDigits, parseAmountToMinor, rateFromAmounts } from '@/utils/money';
-import { formatAmountInput, stripAmountGrouping } from '@/utils/format-amount-input';
 
 export type TransferSelection = { fromId: string | null; toId: string | null };
 
@@ -82,6 +82,32 @@ export function TransferForm({ accounts, initialSelection, transfer, onSavingCha
     field: 'target',
     value: transfer ? formatMinorForInput(transfer.targetAmountMinor, transfer.targetCurrencyCode) : '',
   }));
+  // Place the caret before the decimal separator once per field when editing.
+  // Release controlled selection immediately so subsequent taps work normally.
+  const [amountCaret, setAmountCaret] = useState<{ start: number; end: number }>();
+  const [targetCaret, setTargetCaret] = useState<{ start: number; end: number }>();
+  const [rateCaret, setRateCaret] = useState<{ start: number; end: number }>();
+  const initialCaretPlaced = useRef({ amount: false, target: false, rate: false });
+
+  useEffect(() => {
+    if (!amountCaret && !targetCaret && !rateCaret) return;
+    const frame = requestAnimationFrame(() => {
+      setAmountCaret(undefined);
+      setTargetCaret(undefined);
+      setRateCaret(undefined);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [amountCaret, targetCaret, rateCaret]);
+
+  function placeInitialCaret(field: 'amount' | 'target' | 'rate', value: string) {
+    if (!transfer || initialCaretPlaced.current[field]) return;
+    initialCaretPlaced.current[field] = true;
+    const position = initialAmountCaret(formatAmountInput(value));
+    const caret = { start: position, end: position };
+    if (field === 'amount') setAmountCaret(caret);
+    else if (field === 'target') setTargetCaret(caret);
+    else setRateCaret(caret);
+  }
   const [loadingRate, setLoadingRate] = useState(false);
   const rateRequest = useRef(0);
   const fetchingRate = useRef(false);
@@ -286,6 +312,8 @@ export function TransferForm({ accounts, initialSelection, transfer, onSavingCha
               </Text>
               <TextInput
                 accessibilityLabel={crossCurrency ? translations.transferDebit : translations.entryAmount}
+                selection={amountCaret}
+                onFocus={() => placeInitialCaret('amount', amount)}
                 value={formatAmountInput(amount)}
                 onChangeText={(value) => { setAmount(stripAmountGrouping(value)); clearError('amount'); }}
                 keyboardType="decimal-pad"
@@ -302,6 +330,8 @@ export function TransferForm({ accounts, initialSelection, transfer, onSavingCha
                 </Text>
                 <TextInput
                   accessibilityLabel={translations.transferCredit}
+                  selection={targetCaret}
+                  onFocus={() => placeInitialCaret('target', targetAmount)}
                   value={formatAmountInput(targetAmount)}
                   onChangeText={(value) => changeQuote('target', stripAmountGrouping(value))}
                   keyboardType="decimal-pad"
@@ -316,6 +346,8 @@ export function TransferForm({ accounts, initialSelection, transfer, onSavingCha
                 <View style={styles.rateRow}>
                   <TextInput
                     accessibilityLabel={translations.transferRate}
+                    selection={rateCaret}
+                    onFocus={() => placeInitialCaret('rate', rate)}
                     value={formatAmountInput(rate)}
                     onChangeText={(value) => changeQuote('rate', stripAmountGrouping(value))}
                     keyboardType="decimal-pad"

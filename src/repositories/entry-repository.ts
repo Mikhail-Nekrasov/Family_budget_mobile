@@ -6,6 +6,7 @@ import type { EntryType } from '@/models/entry-type';
 import { getAccountBySyncId } from '@/repositories/account-repository';
 import { getCategoryBySyncId } from '@/repositories/category-repository';
 import { isEntryDateAllowed } from '@/utils/entry-period';
+import { enqueueSyncCommand } from './sync-outbox-repository';
 
 export type CreateEntryInput = {
   title: string;
@@ -65,6 +66,60 @@ function formatLocalDateTime(value: Date): string {
 function validateType(type: EntryType): void {
   if (type !== 'EXPENSE' && type !== 'INCOME') {
     throw new Error('Invalid entry type');
+  }
+}
+
+
+function entrySyncPayload(entry: Entry) {
+  return {
+    syncId: entry.syncId,
+    title: entry.title,
+    type: entry.type,
+    amountMinor: entry.amountMinor,
+    dateTime: entry.dateTime,
+    description: entry.description,
+    accountSyncId: entry.accountSyncId,
+    categorySyncId: entry.categorySyncId,
+  };
+}
+
+/**
+ * Unsynced entries keep a single CREATE with the latest values.
+ * Synced entries receive a new UPDATE command.
+ * This method must run inside the same transaction as the entry change.
+ */
+async function queueEntryChange(
+  transaction: SQLiteDatabase,
+  entry: Entry,
+): Promise<void> {
+  if (entry.serverId === null) {
+    const pending = await transaction.getFirstAsync<{ commandId: string }>(
+      `SELECT command_id AS commandId FROM sync_outbox
+       WHERE entity_type = 'ENTRY' AND entity_sync_id = ? AND operation = 'CREATE'
+       ORDER BY rowid LIMIT 1`,
+      entry.syncId,
+    );
+    if (!pending) {
+      // Legacy entry: record its latest state as a CREATE.
+      await enqueueSyncCommand(transaction, {
+        entityType: 'ENTRY', entitySyncId: entry.syncId, operation: 'CREATE',
+        payload: entrySyncPayload(entry), expectedServerVersion: null,
+      });
+      return;
+    }
+    await transaction.runAsync(
+      'UPDATE sync_outbox SET payload_json = ? WHERE command_id = ?',
+      JSON.stringify(entrySyncPayload(entry)),
+      pending.commandId,
+    );
+  } else {
+    await enqueueSyncCommand(transaction, {
+      entityType: 'ENTRY',
+      entitySyncId: entry.syncId,
+      operation: 'UPDATE',
+      payload: entrySyncPayload(entry),
+      expectedServerVersion: entry.serverVersion,
+    });
   }
 }
 
@@ -252,6 +307,14 @@ export async function createEntry(
       if (updated.changes !== 1) {
         throw new Error('Account balance could not be updated');
       }
+
+      await enqueueSyncCommand(transaction, {
+        entityType: 'ENTRY',
+        entitySyncId: entry.syncId,
+        operation: 'CREATE',
+        payload: entrySyncPayload(entry),
+        expectedServerVersion: null,
+      });
     },
   );
 
@@ -398,6 +461,16 @@ export async function updateEntry(
     if (result.changes !== 1) {
       throw new Error('Entry could not be updated');
     }
+
+    await queueEntryChange(transaction, {
+      ...previous,
+      title,
+      amountMinor: input.amountMinor,
+      dateTime,
+      description: input.description?.trim() || null,
+      accountSyncId: input.accountSyncId,
+      categorySyncId: input.categorySyncId,
+    });
   });
 }
 
@@ -425,6 +498,21 @@ export async function deleteEntry(
 
     if (result.changes !== 1) {
       throw new Error('Entry could not be deleted');
+    }
+
+    if (entry.serverId === null) {
+      await transaction.runAsync(
+        `DELETE FROM sync_outbox WHERE entity_type = 'ENTRY' AND entity_sync_id = ?`,
+        syncId,
+      );
+    } else {
+      await enqueueSyncCommand(transaction, {
+        entityType: 'ENTRY',
+        entitySyncId: syncId,
+        operation: 'DELETE',
+        payload: { syncId },
+        expectedServerVersion: entry.serverVersion,
+      });
     }
   });
 }

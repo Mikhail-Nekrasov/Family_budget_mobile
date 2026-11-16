@@ -4,6 +4,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { isIconColor } from '@/constants/icon-colors';
 import type { Account } from '@/models/account';
 import { markAccountOrderChanged } from './account-order-sync-repository';
+import { enqueueSyncCommand } from './sync-outbox-repository';
 
 export type CreateAccountInput = {
   name: string;
@@ -157,6 +158,20 @@ export async function createAccount(
       );
 
       await markAccountOrderChanged(transaction);
+      await enqueueSyncCommand(transaction, {
+        entityType: 'ACCOUNT',
+        entitySyncId: account.syncId,
+        operation: 'CREATE',
+        payload: {
+          syncId: account.syncId,
+          name: account.name,
+          openingBalanceMinor: account.openingBalanceMinor,
+          description: account.description,
+          currencyCode: account.currencyCode,
+          iconKey: account.iconKey,
+        },
+        expectedServerVersion: null,
+      });
     },
   );
 
@@ -180,28 +195,58 @@ export async function updateAccount(
 
   const description = input.description?.trim() || null;
 
-  const result = await database.runAsync(
-    `
-      UPDATE accounts
-      SET
-        name = ?,
-        description = ?,
-        icon_key = ?,
-        icon_color = ?,
-        is_hidden = ?
-      WHERE sync_id = ?
-    `,
-    name,
-    description,
-    input.iconKey,
-    input.iconColor?.toUpperCase() ?? null,
-    input.isHidden,
-    syncId,
-  );
-
-  if (result.changes !== 1) {
-    throw new Error('Account not found');
-  }
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    const current = await getAccountBySyncId(transaction, syncId);
+    if (!current) throw new Error('Account not found');
+    const result = await transaction.runAsync(
+      `UPDATE accounts SET name = ?, description = ?, icon_key = ?, icon_color = ?, is_hidden = ? WHERE sync_id = ?`,
+      name, description, input.iconKey, input.iconColor?.toUpperCase() ?? null,
+      input.isHidden, syncId,
+    );
+    if (result.changes !== 1) throw new Error('Account not found');
+    if (current.serverId === null) {
+      // The account has not reached the server. Keep its original CREATE
+      // (including opening balance and currency) and update only editable fields.
+      const pendingCreate = await transaction.getFirstAsync<{ commandId: string; payloadJson: string }>(
+        `SELECT command_id AS commandId, payload_json AS payloadJson
+         FROM sync_outbox
+         WHERE entity_type = 'ACCOUNT' AND entity_sync_id = ? AND operation = 'CREATE'
+         ORDER BY rowid LIMIT 1`,
+        syncId,
+      );
+      if (!pendingCreate) {
+        // This account existed before the sync outbox was introduced.
+        // Preserve its original opening balance rather than its current balance.
+        await enqueueSyncCommand(transaction, {
+          entityType: 'ACCOUNT', entitySyncId: syncId, operation: 'CREATE',
+          payload: {
+            syncId, name, description, iconKey: input.iconKey,
+            openingBalanceMinor: current.openingBalanceMinor,
+            currencyCode: current.currencyCode,
+          },
+          expectedServerVersion: null,
+        });
+      } else {
+      const originalPayload = JSON.parse(pendingCreate.payloadJson) as Record<string, unknown>;
+      await transaction.runAsync(
+        `UPDATE sync_outbox SET payload_json = ? WHERE command_id = ?`,
+        JSON.stringify({
+          ...originalPayload,
+          name,
+          description,
+          iconKey: input.iconKey,
+        }),
+        pendingCreate.commandId,
+      );
+      }
+    } else {
+      await enqueueSyncCommand(transaction, {
+        entityType: 'ACCOUNT', entitySyncId: syncId, operation: 'UPDATE',
+        payload: { syncId, name, description, iconKey: input.iconKey },
+        expectedServerVersion: current.serverVersion,
+      });
+    }
+  });
 }
 
 export async function archiveAccount(
@@ -313,6 +358,12 @@ export async function deleteLocalAccount(
         syncId,
       );
 
+      // This account has never been synchronized, so no DELETE should be
+      // sent. Remove its pending CREATE and any related queued changes.
+      await transaction.runAsync(
+        `DELETE FROM sync_outbox WHERE entity_type = 'ACCOUNT' AND entity_sync_id = ?`,
+        syncId,
+      );
       await markAccountOrderChanged(transaction);
     },
   );

@@ -6,6 +6,7 @@ import type { Language } from '@/i18n/languages';
 import type { Category } from '@/models/category';
 import type { EntryType } from '@/models/entry-type';
 import { getCategoryName } from '@/utils/category-name';
+import { enqueueSyncCommand } from './sync-outbox-repository';
 
 export type CreateCategoryInput = {
   name: string;
@@ -99,29 +100,39 @@ export async function createCategory(
     throw new Error('Invalid category type');
   }
   const syncId = randomUUID();
-  await database.runAsync(
-    `
-      INSERT INTO categories (
-        sync_id,
-        name,
-        type,
-        icon_key,
-        icon_color,
-        sort_order
-      )
-      SELECT
-        ?, ?, ?, ?, ?,
-        COALESCE(MAX(sort_order), -1) + 1
-      FROM categories
-      WHERE type = ?
-    `,
-    syncId,
-    input.name.trim(),
-    input.type,
-    input.iconKey.trim(),
-    input.iconColor?.toUpperCase() ?? null,
-    input.type,
-  );
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    await transaction.runAsync(
+      `
+        INSERT INTO categories (
+          sync_id,
+          name,
+          type,
+          icon_key,
+          icon_color,
+          sort_order
+        )
+        SELECT
+          ?, ?, ?, ?, ?,
+          COALESCE(MAX(sort_order), -1) + 1
+        FROM categories
+        WHERE type = ?
+      `,
+      syncId,
+      input.name.trim(),
+      input.type,
+      input.iconKey.trim(),
+      input.iconColor?.toUpperCase() ?? null,
+      input.type,
+    );
+    await enqueueSyncCommand(transaction, {
+      entityType: 'CATEGORY', entitySyncId: syncId, operation: 'CREATE',
+      payload: {
+        syncId, name: input.name.trim(), type: input.type,
+        iconKey: input.iconKey.trim(), iconColor: input.iconColor?.toUpperCase() ?? null,
+      },
+      expectedServerVersion: null,
+    });
+  });
   const created = await getCategoryBySyncId(database, syncId);
   if (!created) {
     throw new Error('Created category not found');
@@ -172,6 +183,41 @@ export async function updateCategory(
       syncId,
     );
     updated = await getCategoryBySyncId(transaction, syncId);
+    if (!updated) throw new Error('Updated category not found');
+    const payload = {
+      syncId, name: updated.name, type: updated.type,
+      iconKey: updated.iconKey, iconColor: updated.iconColor,
+      defaultKey: updated.defaultKey, nameOverrides: updated.nameOverrides,
+    };
+    if (current.serverId === null) {
+      // The server has never seen this category. Keep a single CREATE with
+      // the latest values instead of queuing UPDATE commands that cannot apply.
+      const pendingCreate = await transaction.getFirstAsync<{ commandId: string }>(
+        `SELECT command_id AS commandId FROM sync_outbox
+         WHERE entity_type = 'CATEGORY' AND entity_sync_id = ? AND operation = 'CREATE'
+         ORDER BY rowid LIMIT 1`,
+        syncId,
+      );
+      if (!pendingCreate) {
+        // Legacy local category: first edit must create it on the server.
+        await enqueueSyncCommand(transaction, {
+          entityType: 'CATEGORY', entitySyncId: syncId, operation: 'CREATE',
+          payload, expectedServerVersion: null,
+        });
+      } else {
+      await transaction.runAsync(
+        `UPDATE sync_outbox SET payload_json = ? WHERE command_id = ?`,
+        JSON.stringify(payload),
+        pendingCreate.commandId,
+      );
+      }
+    } else {
+      await enqueueSyncCommand(transaction, {
+        entityType: 'CATEGORY', entitySyncId: syncId, operation: 'UPDATE',
+        payload,
+        expectedServerVersion: current.serverVersion,
+      });
+    }
   });
   if (!updated) {
     throw new Error('Updated category not found');
@@ -203,16 +249,29 @@ export async function deleteLocalCategory(
   database: SQLiteDatabase,
   syncId: string,
 ): Promise<void> {
-  const result = await database.runAsync(
-    `DELETE FROM categories WHERE sync_id = ? AND NOT EXISTS (
-       SELECT 1 FROM entries WHERE category_sync_id = categories.sync_id
-     )`,
-    syncId,
-  );
-  if (result.changes !== 1) {
-    if (await getCategoryBySyncId(database, syncId)) {
-      throw new CategoryInUseError();
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    const current = await getCategoryBySyncId(transaction, syncId);
+    if (!current) throw new Error('Category not found');
+    const result = await transaction.runAsync(
+      `DELETE FROM categories WHERE sync_id = ? AND NOT EXISTS (
+         SELECT 1 FROM entries WHERE category_sync_id = categories.sync_id
+       )`,
+      syncId,
+    );
+    if (result.changes !== 1) throw new CategoryInUseError();
+
+    if (current.serverId === null) {
+      // This category has never been uploaded. Cancel all its pending changes.
+      await transaction.runAsync(
+        `DELETE FROM sync_outbox WHERE entity_type = 'CATEGORY' AND entity_sync_id = ?`,
+        syncId,
+      );
+    } else {
+      await enqueueSyncCommand(transaction, {
+        entityType: 'CATEGORY', entitySyncId: syncId, operation: 'DELETE',
+        payload: { syncId, serverId: current.serverId },
+        expectedServerVersion: current.serverVersion,
+      });
     }
-    throw new Error('Category not found');
-  }
+  });
 }

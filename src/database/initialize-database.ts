@@ -9,7 +9,7 @@ import { en } from '@/i18n/en';
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 22;
+const DATABASE_VERSION = 23;
 
 // The original account palette is needed for both color migrations.
 const LEGACY_ACCOUNT_ICON_COLOR_ROWS = [
@@ -529,6 +529,36 @@ export async function initializeDatabase(
         ...colorPairs.flat(),
         ...colorPairs.map(([oldColor]) => oldColor),
       );
+    }
+
+    if (currentVersion < 23) {
+      await database.execAsync(`
+        CREATE TABLE sync_outbox (
+          command_id TEXT PRIMARY KEY NOT NULL,
+          entity_type TEXT NOT NULL CHECK (
+            entity_type IN ('ACCOUNT', 'CATEGORY', 'ENTRY', 'TRANSFER')
+          ),
+          entity_sync_id TEXT NOT NULL,
+          operation TEXT NOT NULL CHECK (
+            operation IN ('CREATE', 'UPDATE', 'DELETE', 'ARCHIVE', 'RESTORE')
+          ),
+          payload_json TEXT NOT NULL,
+          expected_server_version INTEGER CHECK (
+            expected_server_version IS NULL OR expected_server_version >= 0
+          ),
+          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+          attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0)
+        );
+        CREATE INDEX idx_sync_outbox_created
+          ON sync_outbox(created_at, command_id);
+
+        CREATE TABLE sync_state (
+          id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+          download_cursor TEXT,
+          last_success_at TEXT
+        );
+        INSERT INTO sync_state (id) VALUES (1);
+      `);
     }
 
     await database.execAsync(
