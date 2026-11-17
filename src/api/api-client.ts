@@ -78,6 +78,7 @@ export async function apiRequest(
         response.status,
         getErrorMessage(data) ??
           `Request failed: HTTP ${response.status}`,
+        data,
       );
     }
 

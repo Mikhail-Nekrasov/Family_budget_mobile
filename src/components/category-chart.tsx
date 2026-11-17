@@ -235,10 +235,10 @@ export function CategoryChart({ segments, label, currencyCode, textColor, mutedC
         </Svg>
         <ChartCenter
           label={shownLabel}
-          amount={available ? shownAmount : '—'}
+          amount={loading ? '' : available ? shownAmount : '—'}
           textColor={textColor}
           mutedColor={mutedColor}
-          notice={available ? undefined : loading ? translations.loading : translations.conversionUnavailable}
+          notice={loading ? translations.loading : available ? undefined : translations.conversionUnavailable}
         />
 
         {canSelect && (

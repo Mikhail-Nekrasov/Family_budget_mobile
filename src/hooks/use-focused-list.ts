@@ -1,6 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { useBudgetDownloadRevision } from '@/hooks/use-budget-download-revision';
 type ListState<Row> =
   | { status: 'ready'; rows: Row[] }
   | { status: 'error' };
@@ -14,6 +15,7 @@ export function useFocusedList<Key extends string, Row>(
   preloadBeforeFocus = false,
 ) {
   type Entry = ListState<Row>;
+  const downloadRevision = useBudgetDownloadRevision();
   type AllTabs = Record<Key, Entry>;
   type Cache = Partial<AllTabs>;
 
@@ -63,7 +65,8 @@ export function useFocusedList<Key extends string, Row>(
     return () => {
       active = false;
     };
-  }, [key, load, paused]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- An applied download refreshes the focused query.
+  }, [downloadRevision, key, load, paused]));
 
   useEffect(() => {
     if (!preloadBeforeFocus || hasFocused.current || warmedKey.current !== null) {

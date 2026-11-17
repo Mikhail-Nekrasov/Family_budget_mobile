@@ -1,3 +1,4 @@
+import { FormHeader } from '@/components/form-header';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import {
@@ -13,7 +14,7 @@ import {
   View,
   useColorScheme
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AccountIcon } from '@/components/accounts/account-icon';
 import { AppButton } from '@/components/app-button';
@@ -52,6 +53,7 @@ type Props = {
 };
 
 export function AccountForm({ account, onSaved, onCancel }: Props) {
+  const bottomInset = useSafeAreaInsets().bottom;
   const database = useSQLiteContext();
   const { translations } = useLanguage();
 
@@ -289,21 +291,20 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
 
   return (
     <ScreenBackground>
-      <SafeAreaView style={styles.screen} {...outsideTapHandlers}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.screen} {...outsideTapHandlers}>
+        <FormHeader title={account
+                ? translations.editAccount
+                : translations.newAccount} onBack={onCancel} disabled={saving} />
         <KeyboardAvoidingView
           style={styles.screen}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <ScrollView
+            style={styles.screen}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
           >
-            <Text style={[styles.title, { color: palette.text }]}>
-              {account
-                ? translations.editAccount
-                : translations.newAccount}
-            </Text>
 
             <Text style={[styles.label, { color: palette.text }]}>
               {translations.accountName}
@@ -530,61 +531,61 @@ export function AccountForm({ account, onSaved, onCancel }: Props) {
               disabled={saving}
             />
 
-            <View style={styles.actions}>
-              <AppButton
-                title={pendingAction === 'save' ? translations.saving : translations.save}
-                rightIcon="check"
-                loading={pendingAction === 'save'}
-                disabled={saving}
-                nativeGlass
-                onPress={() => void saveAccount()}
-              />
-
-              {account && (
-                <>
-                  <AppButton
-                    title={
-                      account.archivedAt === null
-                        ? translations.archiveAccount
-                        : translations.restoreAccount
-                    }
-                    rightIcon={account.archivedAt === null ? 'archive' : 'restore'}
-                    loading={pendingAction === 'archive' || pendingAction === 'restore'}
-                    nativeGlass
-                    disabled={saving}
-                    onPress={() =>
-                      void changeAccount(
-                        account.archivedAt === null
-                          ? 'archive'
-                          : 'restore',
-                      )
-                    }
-                  />
-
-                  {canDelete && (
-                    <AppButton
-                      title={translations.deleteAccount}
-                      rightIcon="delete"
-                      loading={pendingAction === 'delete'}
-                      variant="danger"
-                      nativeGlass
-                      disabled={saving}
-                      onPress={confirmDeleteAccount}
-                    />
-                  )}
-                </>
-              )}
-
-              <AppButton
-                title={translations.cancel}
-                rightIcon="cancel"
-                nativeGlass
-                disabled={saving}
-                onPress={onCancel}
-              />
-            </View>
           </ScrollView>
         </KeyboardAvoidingView>
+          <View style={[styles.actions, { marginBottom: -Math.min(24, bottomInset) }]}>
+            <AppButton
+              title={pendingAction === 'save' ? translations.saving : translations.save}
+              rightIcon="check"
+              loading={pendingAction === 'save'}
+              disabled={saving}
+              nativeGlass
+              onPress={() => void saveAccount()}
+            />
+
+            {account && (
+              <>
+                <AppButton
+                  title={
+                    account.archivedAt === null
+                      ? translations.archiveAccount
+                      : translations.restoreAccount
+                  }
+                  rightIcon={account.archivedAt === null ? 'archive' : 'restore'}
+                  loading={pendingAction === 'archive' || pendingAction === 'restore'}
+                  nativeGlass
+                  disabled={saving}
+                  onPress={() =>
+                    void changeAccount(
+                      account.archivedAt === null
+                        ? 'archive'
+                        : 'restore',
+                    )
+                  }
+                />
+
+                {canDelete && (
+                  <AppButton
+                    title={translations.deleteAccount}
+                    rightIcon="delete"
+                    loading={pendingAction === 'delete'}
+                    variant="danger"
+                    nativeGlass
+                    disabled={saving}
+                    onPress={confirmDeleteAccount}
+                  />
+                )}
+              </>
+            )}
+
+            <AppButton
+              title={translations.cancel}
+              rightIcon="cancel"
+              nativeGlass
+              disabled={saving}
+              onPress={onCancel}
+            />
+          </View>
       </SafeAreaView>
     </ScreenBackground>
   );
@@ -598,11 +599,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     gap: 6,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 4,
   },
   label: {
     fontSize: 15,
@@ -655,8 +651,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   actions: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 10,
     gap: 12,
-    marginTop: 8,
   },
   currencyField: {
     flexDirection: 'row',

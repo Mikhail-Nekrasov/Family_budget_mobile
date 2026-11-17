@@ -1,3 +1,4 @@
+import { FormHeader } from '@/components/form-header';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import {
@@ -11,7 +12,7 @@ import {
   useColorScheme,
   View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
 import { CategoryIcon } from '@/components/categories/category-icon';
@@ -53,6 +54,7 @@ export function CategoryForm({
   onSaved,
   onCancel,
 }: CategoryFormProps) {
+  const bottomInset = useSafeAreaInsets().bottom;
   const database = useSQLiteContext();
   const { translations, language } = useLanguage();
 
@@ -258,24 +260,18 @@ export function CategoryForm({
 
   return (
     <ScreenBackground>
-      <SafeAreaView style={styles.screen}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.screen}>
+        <FormHeader title={category ? translations.editCategory : translations.newCategory} onBack={onCancel} disabled={saving} />
         <KeyboardAvoidingView
           style={styles.screen}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <ScrollView
+            style={styles.screen}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
           >
-            <Text
-              style={[
-                styles.title,
-                { color: palette.text },
-              ]}
-            >
-              {category ? translations.editCategory : translations.newCategory}
-            </Text>
 
             <Text
               style={[
@@ -365,45 +361,45 @@ export function CategoryForm({
               disabled={saving}
             />
 
-            <View style={styles.actions}>
-              <AppButton
-                title={pendingAction === 'save' ? translations.saving : translations.save}
-                rightIcon="check"
-                loading={pendingAction === 'save'}
-                disabled={saving}
-                nativeGlass
-                onPress={() => void saveCategory()}
-              />
-
-              {category && (
-                <>
-                  <AppButton
-                    title={translations.deleteCategory}
-                    rightIcon="delete"
-                    loading={pendingAction === 'delete'}
-                    nativeGlass
-                    variant="danger"
-                    disabled={saving || canDelete !== true}
-                    onPress={confirmDelete}
-                  />
-                  {canDelete === false && (
-                    <Text style={[styles.hint, { color: palette.muted }]}>
-                      {translations.categoryInUse}
-                    </Text>
-                  )}
-                </>
-              )}
-
-              <AppButton
-                title={translations.cancel}
-                rightIcon="cancel"
-                nativeGlass
-                disabled={saving}
-                onPress={onCancel}
-              />
-            </View>
           </ScrollView>
         </KeyboardAvoidingView>
+          <View style={[styles.actions, { marginBottom: -Math.min(24, bottomInset) }]}>
+            <AppButton
+              title={pendingAction === 'save' ? translations.saving : translations.save}
+              rightIcon="check"
+              loading={pendingAction === 'save'}
+              disabled={saving}
+              nativeGlass
+              onPress={() => void saveCategory()}
+            />
+
+            {category && (
+              <>
+                <AppButton
+                  title={translations.deleteCategory}
+                  rightIcon="delete"
+                  loading={pendingAction === 'delete'}
+                  nativeGlass
+                  variant="danger"
+                  disabled={saving || canDelete !== true}
+                  onPress={confirmDelete}
+                />
+                {canDelete === false && (
+                  <Text style={[styles.hint, { color: palette.muted }]}>
+                    {translations.categoryInUse}
+                  </Text>
+                )}
+              </>
+            )}
+
+            <AppButton
+              title={translations.cancel}
+              rightIcon="cancel"
+              nativeGlass
+              disabled={saving}
+              onPress={onCancel}
+            />
+          </View>
       </SafeAreaView>
     </ScreenBackground>
   );
@@ -416,10 +412,6 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     gap: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
   },
   type: {
     fontSize: 16,
@@ -440,7 +432,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   actions: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 10,
     gap: 12,
-    marginTop: 16,
   },
 });

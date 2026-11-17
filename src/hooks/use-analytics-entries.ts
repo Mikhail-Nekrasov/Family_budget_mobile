@@ -2,6 +2,8 @@ import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 
+import { useBudgetDownloadRevision } from '@/hooks/use-budget-download-revision';
+
 import type { Account } from '@/models/account';
 import type { Category } from '@/models/category';
 import type { Entry } from '@/models/entry';
@@ -18,8 +20,9 @@ const EMPTY: Data = { entries: [], accounts: [], categories: [], currency: 'EUR'
 
 export function useAnalyticsEntries(type: EntryType | 'SUMMARY', period: EntryPeriod, categoryId?: string, accountIds?: readonly string[]) {
   const database = useSQLiteContext();
+  const downloadRevision = useBudgetDownloadRevision();
   const [revision, setRevision] = useState(0);
-  const queryKey = JSON.stringify([type, period, categoryId, accountIds, revision]);
+  const queryKey = JSON.stringify([type, period, categoryId, accountIds, revision, downloadRevision]);
   const [result, setResult] = useState<{ key: string; data: Data | null } | null>(null);
 
   useFocusEffect(useCallback(() => {

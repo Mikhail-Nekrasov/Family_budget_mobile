@@ -1,7 +1,8 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   StyleSheet,
@@ -13,6 +14,8 @@ import {
   SafeAreaProvider,
   SafeAreaView,
 } from 'react-native-safe-area-context';
+
+import ReorderableList, { reorderItems, useReorderableDrag } from 'react-native-reorderable-list';
 
 import { AppButton } from '@/components/app-button';
 import { CategoryCard } from '@/components/categories/category-card';
@@ -28,12 +31,19 @@ import { useFocusedList } from '@/hooks/use-focused-list';
 import { useLanguage } from '@/hooks/use-language';
 import type { Category } from '@/models/category';
 import type { EntryType } from '@/models/entry-type';
-import { getCategories } from '@/repositories/category-repository';
+import { getCategories, saveCategoryOrder } from '@/repositories/category-repository';
+
+function ReorderableCategoryCard({ category }: { category: Category }) {
+  const drag = useReorderableDrag();
+  return <CategoryCard category={category} onPress={() => undefined} onLongPress={drag} />;
+}
 
 export default function CategoriesScreen() {
   const database = useSQLiteContext();
   const { translations } = useLanguage();
 
+  const [reordering, setReordering] = useState(false);
+  const saving = useRef(false);
   const [type, setType] = useState<EntryType>('EXPENSE');
   const [createVisible, setCreateVisible] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -55,13 +65,28 @@ export default function CategoriesScreen() {
     [database],
   );
 
-  const { rows: categories, status } = useFocusedList(
+  const { rows: categories, status, setRows } = useFocusedList(
     type,
     loadCategories,
     createVisible,
     startupPreloadEnabled,
   );
   const markStartupLayout = useStartupScreenLayout('categories', status !== 'loading');
+
+  async function reorder(from: number, to: number) {
+    if (saving.current || from === to) return;
+    saving.current = true;
+    const next = reorderItems(categories, from, to);
+    setRows(next);
+    try {
+      await saveCategoryOrder(database, type, next.map(({ syncId }) => syncId));
+    } catch {
+      setRows(await getCategories(database, type).catch(() => categories));
+      Alert.alert(translations.loadCategoriesError);
+    } finally {
+      saving.current = false;
+    }
+  }
 
   return (
     <ScreenBackground>
@@ -74,11 +99,13 @@ export default function CategoriesScreen() {
             title={translations.newCategory}
             rightSymbol="＋"
             nativeGlass
+            disabled={reordering}
             onPress={() => {
               setEditingCategory(null);
               setCreateVisible(true);
             }}
           />
+
         </View>
         <View style={styles.tabs}>
           <ScreenTabs<EntryType>
@@ -93,11 +120,21 @@ export default function CategoriesScreen() {
               },
             ]}
             value={type}
-            onChange={setType}
+            onChange={(next) => { if (!saving.current) { setReordering(false); setType(next); } }}
           />
         </View>
 
-        <FlatList
+        {reordering ? (
+          <ReorderableList
+            style={styles.screen}
+            data={categories}
+            keyExtractor={(category) => category.syncId}
+            contentContainerStyle={styles.content}
+            onReorder={({ from, to }) => void reorder(from, to)}
+            renderItem={({ item }) => <ReorderableCategoryCard category={item} />}
+          />
+        ) : <FlatList
+          style={styles.screen}
           data={categories}
           keyExtractor={(category) => category.syncId}
           contentContainerStyle={styles.content}
@@ -131,8 +168,17 @@ export default function CategoriesScreen() {
               }}
             />
           )}
-        />
+        />}
         {!categories.length && <StartupEmptyLayout onLayout={markStartupLayout} />}
+        {(categories.length > 1 || reordering) && (
+          <View style={styles.footer}>
+            <AppButton
+              title={reordering ? translations.finishReordering : translations.reorderAccounts}
+              nativeGlass rightIcon={reordering ? 'check' : undefined} keepTitleCentered
+              onPress={() => { if (!saving.current) setReordering((current) => !current); }}
+            />
+          </View>
+        )}
         <Modal
           visible={createVisible}
           animationType="slide"
@@ -163,6 +209,7 @@ export default function CategoriesScreen() {
 }
 
 const styles = StyleSheet.create({
+  footer: { paddingHorizontal: 20, paddingBottom: 12, paddingTop: 8 },
   screen: {
     flex: 1,
   },
@@ -184,6 +231,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
     toolbar: {
+    gap: 8,
     paddingHorizontal: 20,
     paddingTop: 12,
   },

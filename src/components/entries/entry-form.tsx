@@ -1,3 +1,4 @@
+import { FormHeader } from '@/components/form-header';
 import { useSQLiteContext } from 'expo-sqlite';
 import { type ComponentRef, useEffect, useRef, useState } from 'react';
 import {
@@ -14,7 +15,7 @@ import {
   useWindowDimensions,
   View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AccountSelect } from '@/components/accounts/account-select';
 import { AppButton } from '@/components/app-button';
@@ -76,6 +77,7 @@ export function EntryForm({
   onSaved,
   onCancel,
 }: EntryFormProps) {
+  const bottomInset = useSafeAreaInsets().bottom;
   const database = useSQLiteContext();
   const { translations, locale, language } = useLanguage();
   const dark = useColorScheme() === 'dark';
@@ -428,25 +430,24 @@ export function EntryForm({
 
   return (
     <ScreenBackground>
-      <SafeAreaView style={styles.screen} {...outsideTapHandlers}>
-        <KeyboardAvoidingView
-          style={styles.screen}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <ScrollView
-            contentContainerStyle={styles.content}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-          >
-            <Text style={[styles.title, { color: palette.text }]}>
-              {entry
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.screen} {...outsideTapHandlers}>
+        <FormHeader title={entry
                 ? type === 'EXPENSE'
                   ? translations.editExpense
                   : translations.editIncome
                 : type === 'EXPENSE'
                   ? translations.newExpense
-                  : translations.newIncome}
-            </Text>
+                  : translations.newIncome} onBack={onCancel} disabled={saving} />
+        <KeyboardAvoidingView
+          style={styles.screen}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView
+            style={styles.screen}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
 
             {status === 'loading' ? (
               <ActivityIndicator
@@ -644,40 +645,40 @@ export function EntryForm({
               </>
             )}
 
-            <View style={styles.actions}>
-              {optionsAvailable && (
-                <AppButton
-                  title={pendingAction === 'save' ? translations.saving : translations.save}
-                  rightIcon="check"
-                  loading={pendingAction === 'save'}
-                  disabled={saving}
-                  nativeGlass
-                  onPress={() => void saveEntry()}
-                />
-              )}
-
-              {entry && status === 'ready' && (
-                <AppButton
-                  title={translations.deleteEntry}
-                  rightIcon="delete"
-                  loading={pendingAction === 'delete'}
-                  variant="danger"
-                  nativeGlass
-                  disabled={saving}
-                  onPress={confirmDeleteEntry}
-                />
-              )}
-
-              <AppButton
-                title={translations.cancel}
-                rightIcon="cancel"
-                nativeGlass
-                disabled={saving}
-                onPress={onCancel}
-              />
-            </View>
           </ScrollView>
         </KeyboardAvoidingView>
+          <View style={[styles.actions, { marginBottom: -Math.min(24, bottomInset) }]}>
+            {optionsAvailable && (
+              <AppButton
+                title={pendingAction === 'save' ? translations.saving : translations.save}
+                rightIcon="check"
+                loading={pendingAction === 'save'}
+                disabled={saving}
+                nativeGlass
+                onPress={() => void saveEntry()}
+              />
+            )}
+
+            {entry && status === 'ready' && (
+              <AppButton
+                title={translations.deleteEntry}
+                rightIcon="delete"
+                loading={pendingAction === 'delete'}
+                variant="danger"
+                nativeGlass
+                disabled={saving}
+                onPress={confirmDeleteEntry}
+              />
+            )}
+
+            <AppButton
+              title={translations.cancel}
+              rightIcon="cancel"
+              nativeGlass
+              disabled={saving}
+              onPress={onCancel}
+            />
+          </View>
         {selectedAccount && (
           <EntryCalculator
             visible={calculatorVisible}
@@ -706,13 +707,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actions: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 10,
     gap: 8,
-    marginTop: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 8,
   },
   label: {
     fontSize: 15,

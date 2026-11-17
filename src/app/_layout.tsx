@@ -7,7 +7,9 @@ import { Text, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppButton } from '@/components/app-button';
+import { AutomaticBudgetUpload } from '@/components/automatic-budget-upload';
 import { BudgetAuthProvider, useBudgetAuth } from '@/components/budget-auth';
+import { ProfileBudgetBootstrap } from '@/components/profile-budget-bootstrap';
 import { ScreenBackground } from '@/components/screen-background';
 import { StartupLayout } from '@/components/startup-layout';
 import { initializeDatabase } from '@/database/initialize-database';
@@ -33,6 +35,8 @@ function ProfileBudget() {
   return databaseName ? <ProfileDatabase key={databaseName} databaseName={databaseName} /> : null;
 }
 
+const profileDatabaseOptions = { enableChangeListener: true };
+
 function ProfileDatabase({ databaseName }: { databaseName: string }) {
   const { text, signOut } = useBudgetAuth();
   const [failed, setFailed] = useState(false);
@@ -49,8 +53,12 @@ function ProfileDatabase({ databaseName }: { databaseName: string }) {
     );
   }
   return (
-    <SQLiteProvider databaseName={databaseName} onInit={initializeDatabase} onError={() => setFailed(true)}>
-      <AppNavigation />
+    <SQLiteProvider databaseName={databaseName} options={profileDatabaseOptions} onInit={initializeDatabase} onError={() => setFailed(true)}>
+      <ProfileBudgetBootstrap>
+        <AutomaticBudgetUpload>
+          <AppNavigation />
+        </AutomaticBudgetUpload>
+      </ProfileBudgetBootstrap>
     </SQLiteProvider>
   );
 }

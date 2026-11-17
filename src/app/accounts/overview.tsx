@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, useColorScheme, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useBudgetDownloadRevision } from '@/hooks/use-budget-download-revision';
 import { AppSwitch } from '@/components/app-switch';
 import { CategoryChart, type ChartSegment } from '@/components/category-chart';
 import { CurrencyPickerButton } from '@/components/currency-picker-button';
@@ -31,6 +32,7 @@ type OverviewData = {
 
 export default function AccountOverviewScreen() {
   const database = useSQLiteContext();
+  const downloadRevision = useBudgetDownloadRevision();
   const { locale, translations } = useLanguage();
   const dark = useColorScheme() === 'dark';
   const { width } = useWindowDimensions();
@@ -70,7 +72,8 @@ export default function AccountOverviewScreen() {
 
     void load();
     return () => { active = false; };
-  }, [database]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- An applied download refreshes the focused query.
+  }, [downloadRevision, database]));
 
   const currency = selectedCurrency ?? data?.primaryCurrency ?? null;
   const overview = useMemo(() => data && currency

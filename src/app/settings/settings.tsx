@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  View,
   useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,9 +13,11 @@ import { AppButton } from '@/components/app-button';
 import { useBudgetAuth } from '@/components/budget-auth';
 import { ScreenBackground } from '@/components/screen-background';
 import { StartupEmptyLayout, useStartupScreenLayout } from '@/components/startup-layout';
+import { useBudgetSyncStatus, type BudgetSyncPhase } from '@/hooks/use-budget-download-revision';
 import { usePrimaryCurrencyPreference } from '@/hooks/use-primary-currency-preference';
 import { CURRENCY_SYMBOLS } from '@/constants/currencies';
 import { useLanguage } from '@/hooks/use-language';
+import { syncPageText } from '@/i18n/sync-page-text';
 import type { Language } from '@/i18n/languages';
 
 const languageNames: Record<Language, string> = {
@@ -23,10 +26,46 @@ const languageNames: Record<Language, string> = {
   fi: 'Suomi',
 };
 
+const refreshLabels = {
+  en: 'Refresh from server',
+  ru: 'Обновить данные с сервера',
+  fi: 'Päivitä tiedot palvelimelta',
+} satisfies Record<Language, string>;
+
+const syncLabels = {
+  en: {
+    waiting: 'Waiting to sync', offline: 'Offline', uploading: 'Sending local changes…',
+    downloading: 'Checking server changes…', synced: 'Up to date',
+    legacy: 'This device’s old data needs reconciliation', pending: 'Local changes are queued',
+    conflict: 'Sync conflict. Local changes are saved.',
+    retrying: 'Sync interrupted. Retrying automatically.', failed: 'Sync stopped. Local changes are saved.',
+  },
+  ru: {
+    waiting: 'Ожидание синхронизации', offline: 'Нет подключения', uploading: 'Отправка локальных изменений…',
+    downloading: 'Проверка изменений на сервере…', synced: 'Данные актуальны',
+    legacy: 'Нужно сверить старые данные устройства', pending: 'Локальные изменения в очереди',
+    conflict: 'Конфликт синхронизации. Локальные изменения сохранены.',
+    retrying: 'Синхронизация прервалась. Будет повтор.', failed: 'Синхронизация остановилась. Локальные изменения сохранены.',
+  },
+  fi: {
+    waiting: 'Odotetaan synkronointia', offline: 'Ei verkkoyhteyttä', uploading: 'Lähetetään paikallisia muutoksia…',
+    downloading: 'Tarkistetaan palvelimen muutoksia…', synced: 'Tiedot ovat ajan tasalla',
+    legacy: 'Laitteen vanhat tiedot on sovitettava yhteen', pending: 'Paikalliset muutokset ovat jonossa',
+    conflict: 'Synkronointiristiriita. Paikalliset muutokset on tallennettu.',
+    retrying: 'Synkronointi keskeytyi. Yritetään uudelleen.', failed: 'Synkronointi pysähtyi. Paikalliset muutokset on tallennettu.',
+  },
+} satisfies Record<Language, Record<BudgetSyncPhase, string>>;
+
 export default function SettingsScreen() {
   const router = useRouter();
   const { signOut, busy, error, text, user, needsSignIn, reauthenticate } = useBudgetAuth();
-  const { language, translations } = useLanguage();
+  const { language, locale, translations } = useLanguage();
+  const sync = useBudgetSyncStatus();
+  const canRefresh = ['waiting', 'synced', 'pending'].includes(sync.phase);
+  const syncLabel = needsSignIn ? text.signInAgain : syncLabels[language][sync.phase];
+  const checkedAt = sync.checkedAt === null ? null : new Intl.DateTimeFormat(locale, {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).format(sync.checkedAt);
 
   const dark = useColorScheme() === 'dark';
   const { currency: primaryCurrency, status } = usePrimaryCurrencyPreference();
@@ -147,12 +186,35 @@ export default function SettingsScreen() {
               {translations.loadPreferencesError}
             </Text>
           )}
-          {user && <Text style={{ color: palette.text }}>{text.signedInAs}: {user.username}</Text>}
+          {user && (
+            <Text accessibilityLiveRegion="polite" style={{ color: palette.muted }}>
+              {syncLabel}{checkedAt ? ` · ${checkedAt}` : ''}
+            </Text>
+          )}
+          {user && !needsSignIn && (
+            <Pressable accessibilityRole="button"
+              onPress={() => router.push('/settings/synchronization')}
+              style={({ pressed }) => [styles.setting, {
+                backgroundColor: palette.card, borderColor: palette.border, opacity: pressed ? 0.75 : 1,
+              }]}>
+              <Text style={[styles.label, { color: palette.text }]}>{syncPageText[language].title}</Text>
+              {sync.conflicts.length > 0 && <Text style={[styles.value, { color: palette.muted }]}>
+                {sync.conflicts.length}
+              </Text>}
+              <Text accessible={false} style={[styles.arrow, { color: palette.muted }]}>›</Text>
+            </Pressable>
+          )}
+          {user && !needsSignIn && (
+            <AppButton nativeGlass title={refreshLabels[language]} onPress={sync.refresh} disabled={busy || !canRefresh} />
+          )}
           {needsSignIn && (
             <AppButton title={text.signInAgain} onPress={reauthenticate} disabled={busy} />
           )}
           {error && <Text style={{ color: palette.text }}>{error}</Text>}
-          <AppButton title={text.signOut} onPress={signOut} disabled={busy} />
+          <View style={styles.signOut}>
+            {user && <Text style={{ color: palette.muted }}>{text.signedInAs}: {user.username}</Text>}
+            <AppButton nativeGlass title={text.signOut} onPress={signOut} disabled={busy} />
+          </View>
         </ScrollView>
         <StartupEmptyLayout onLayout={markStartupLayout} />
       </SafeAreaView>
@@ -164,7 +226,9 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  signOut: { marginTop: 'auto', paddingTop: 24, gap: 12 },
   content: {
+    flexGrow: 1,
     padding: 20,
     gap: 12,
   },
