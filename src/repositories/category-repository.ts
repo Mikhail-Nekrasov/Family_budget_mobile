@@ -1,3 +1,4 @@
+import { markPreferenceOrderChanged } from '@/services/budget-preferences';
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -6,7 +7,8 @@ import type { Language } from '@/i18n/languages';
 import type { Category } from '@/models/category';
 import type { EntryType } from '@/models/entry-type';
 import { getCategoryName } from '@/utils/category-name';
-import { enqueueSyncCommand } from './sync-outbox-repository';
+import { runBudgetMutation } from '@/database/budget-mutation';
+import { enqueueSyncCommand, queueSyncDelete, queueSyncUpdate } from './sync-outbox-repository';
 
 export type CreateCategoryInput = {
   name: string;
@@ -100,7 +102,7 @@ export async function createCategory(
     throw new Error('Invalid category type');
   }
   const syncId = randomUUID();
-  await database.withExclusiveTransactionAsync(async (transaction) => {
+  await runBudgetMutation(database, async (transaction) => {
     await transaction.runAsync(
       `
         INSERT INTO categories (
@@ -156,7 +158,7 @@ export async function updateCategory(
   }
 
   let updated: Category | null = null;
-  await database.withExclusiveTransactionAsync(async (transaction) => {
+  await runBudgetMutation(database, async (transaction) => {
     const current = await getCategoryBySyncId(transaction, syncId);
     if (!current) {
       throw new Error('Category not found');
@@ -189,35 +191,10 @@ export async function updateCategory(
       iconKey: updated.iconKey, iconColor: updated.iconColor,
       defaultKey: updated.defaultKey, nameOverrides: updated.nameOverrides,
     };
-    if (current.serverId === null) {
-      // The server has never seen this category. Keep a single CREATE with
-      // the latest values instead of queuing UPDATE commands that cannot apply.
-      const pendingCreate = await transaction.getFirstAsync<{ commandId: string }>(
-        `SELECT command_id AS commandId FROM sync_outbox
-         WHERE entity_type = 'CATEGORY' AND entity_sync_id = ? AND operation = 'CREATE'
-         ORDER BY rowid LIMIT 1`,
-        syncId,
-      );
-      if (!pendingCreate) {
-        // Legacy local category: first edit must create it on the server.
-        await enqueueSyncCommand(transaction, {
-          entityType: 'CATEGORY', entitySyncId: syncId, operation: 'CREATE',
-          payload, expectedServerVersion: null,
-        });
-      } else {
-      await transaction.runAsync(
-        `UPDATE sync_outbox SET payload_json = ? WHERE command_id = ?`,
-        JSON.stringify(payload),
-        pendingCreate.commandId,
-      );
-      }
-    } else {
-      await enqueueSyncCommand(transaction, {
-        entityType: 'CATEGORY', entitySyncId: syncId, operation: 'UPDATE',
-        payload,
-        expectedServerVersion: current.serverVersion,
-      });
-    }
+    await queueSyncUpdate(transaction, {
+      entityType: 'CATEGORY', entitySyncId: syncId,
+      serverId: current.serverId, serverVersion: current.serverVersion,
+    }, payload);
   });
   if (!updated) {
     throw new Error('Updated category not found');
@@ -249,7 +226,7 @@ export async function deleteLocalCategory(
   database: SQLiteDatabase,
   syncId: string,
 ): Promise<void> {
-  await database.withExclusiveTransactionAsync(async (transaction) => {
+  await runBudgetMutation(database, async (transaction) => {
     const current = await getCategoryBySyncId(transaction, syncId);
     if (!current) throw new Error('Category not found');
     const result = await transaction.runAsync(
@@ -260,18 +237,23 @@ export async function deleteLocalCategory(
     );
     if (result.changes !== 1) throw new CategoryInUseError();
 
-    if (current.serverId === null) {
-      // This category has never been uploaded. Cancel all its pending changes.
-      await transaction.runAsync(
-        `DELETE FROM sync_outbox WHERE entity_type = 'CATEGORY' AND entity_sync_id = ?`,
-        syncId,
-      );
-    } else {
-      await enqueueSyncCommand(transaction, {
-        entityType: 'CATEGORY', entitySyncId: syncId, operation: 'DELETE',
-        payload: { syncId, serverId: current.serverId },
-        expectedServerVersion: current.serverVersion,
-      });
+    await queueSyncDelete(transaction, {
+      entityType: 'CATEGORY', entitySyncId: syncId,
+      serverId: current.serverId, serverVersion: current.serverVersion,
+    });
+  });
+}
+
+export async function saveCategoryOrder(database: SQLiteDatabase, type: EntryType, ids: string[]) {
+  await runBudgetMutation(database, async (transaction) => {
+    const current = await getCategories(transaction, type);
+    const known = new Set(current.map(({ syncId }) => syncId));
+    if (ids.length !== known.size || new Set(ids).size !== ids.length || ids.some((id) => !known.has(id))) {
+      throw new Error('Category list changed during reordering');
     }
+    for (const [index, id] of ids.entries()) {
+      await transaction.runAsync('UPDATE categories SET sort_order = ? WHERE sync_id = ?', index, id);
+    }
+    await markPreferenceOrderChanged(transaction, `order:${type}`);
   });
 }

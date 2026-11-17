@@ -1,3 +1,4 @@
+import { budgetPreferencesSchema } from './budget-preferences-schema';
 import { DEFAULT_CATEGORIES } from '@/constants/default-categories';
 import {
   ACCOUNT_ICON_COLOR_ROWS,
@@ -5,11 +6,14 @@ import {
   ICON_COLOR_ROWS,
 } from '@/constants/icon-colors';
 import { en } from '@/i18n/en';
+import { enqueueSyncCommand } from '@/repositories/sync-outbox-repository';
 
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 23;
+import { queueExistingLocalData } from './queue-existing-local-data';
+
+const DATABASE_VERSION = 29;
 
 // The original account palette is needed for both color migrations.
 const LEGACY_ACCOUNT_ICON_COLOR_ROWS = [
@@ -332,18 +336,20 @@ export async function initializeDatabase(
         END;
       `);
 
-      for (const definition of DEFAULT_CATEGORIES) {
-        await database.runAsync(
-          `INSERT INTO categories (
-            sync_id, name, type, icon_key, default_key, sort_order
-          ) VALUES (?, ?, ?, ?, ?, ?)`,
-          randomUUID(),
-          en.defaultCategories[definition.key],
-          definition.type,
-          definition.iconKey,
-          definition.key,
-          definition.sortOrder,
-        );
+      if (currentVersion > 0) {
+        for (const definition of DEFAULT_CATEGORIES) {
+          await database.runAsync(
+            `INSERT INTO categories (
+              sync_id, name, type, icon_key, default_key, sort_order
+            ) VALUES (?, ?, ?, ?, ?, ?)`,
+            randomUUID(),
+            en.defaultCategories[definition.key],
+            definition.type,
+            definition.iconKey,
+            definition.key,
+            definition.sortOrder,
+          );
+        }
       }
     }
 
@@ -461,24 +467,26 @@ export async function initializeDatabase(
           AND icon_key = 'gift';
       `);
 
-      for (const definition of DEFAULT_CATEGORIES) {
-        if (definition.key !== 'otherExpense' && definition.key !== 'otherIncome') {
-          continue;
-        }
+      if (currentVersion > 0) {
+        for (const definition of DEFAULT_CATEGORIES) {
+          if (definition.key !== 'otherExpense' && definition.key !== 'otherIncome') {
+            continue;
+          }
 
-        await database.runAsync(
-          `INSERT INTO categories (
-            sync_id, name, type, icon_key, default_key, sort_order, icon_color
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(type, default_key) WHERE default_key IS NOT NULL DO NOTHING`,
-          randomUUID(),
-          en.defaultCategories[definition.key],
-          definition.type,
-          definition.iconKey,
-          definition.key,
-          definition.sortOrder,
-          defaultCategoryIconColor(definition.key),
-        );
+          await database.runAsync(
+            `INSERT INTO categories (
+              sync_id, name, type, icon_key, default_key, sort_order, icon_color
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(type, default_key) WHERE default_key IS NOT NULL DO NOTHING`,
+            randomUUID(),
+            en.defaultCategories[definition.key],
+            definition.type,
+            definition.iconKey,
+            definition.key,
+            definition.sortOrder,
+            defaultCategoryIconColor(definition.key),
+          );
+        }
       }
     }
 
@@ -560,6 +568,59 @@ export async function initializeDatabase(
         INSERT INTO sync_state (id) VALUES (1);
       `);
     }
+
+    if (currentVersion < 24) {
+      await queueExistingLocalData(database);
+    }
+
+    if (currentVersion < 25) {
+      await database.execAsync(`
+        ALTER TABLE sync_outbox ADD COLUMN request_json TEXT
+          CHECK (request_json IS NULL OR json_valid(request_json));
+      `);
+    }
+
+    if (currentVersion < 26) {
+      // Append archive commands after the financial history already in the queue.
+      const archived = await database.getAllAsync<{ syncId: string }>(`
+        SELECT accounts.sync_id AS syncId FROM accounts
+        WHERE accounts.server_id IS NULL AND accounts.archived_at IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM sync_outbox
+            WHERE entity_type = 'ACCOUNT' AND entity_sync_id = accounts.sync_id
+              AND operation IN ('ARCHIVE', 'RESTORE')
+          )
+        ORDER BY accounts.sync_id
+      `);
+      for (const { syncId } of archived) {
+        await enqueueSyncCommand(database, {
+          entityType: 'ACCOUNT',
+          entitySyncId: syncId,
+          operation: 'ARCHIVE',
+          payload: { syncId },
+          expectedServerVersion: null,
+        });
+      }
+    }
+
+    if (currentVersion < 27) {
+      await database.execAsync(`
+        ALTER TABLE sync_state ADD COLUMN initial_sync_complete INTEGER NOT NULL DEFAULT 0
+          CHECK (initial_sync_complete IN (0, 1));
+      `);
+      if (currentVersion > 0) {
+        await database.execAsync('UPDATE sync_state SET initial_sync_complete = 1 WHERE id = 1');
+      }
+    }
+
+    if (currentVersion < 28) {
+      await database.execAsync(`
+        ALTER TABLE sync_outbox ADD COLUMN conflict_json TEXT
+          CHECK (conflict_json IS NULL OR json_valid(conflict_json));
+      `);
+    }
+
+    if (currentVersion < 29) await database.execAsync(budgetPreferencesSchema);
 
     await database.execAsync(
       `PRAGMA user_version = ${DATABASE_VERSION}`,

@@ -34,6 +34,7 @@ import {
 } from '@/utils/entry-period';
 import { getCurrencySymbol } from '@/utils/format-money';
 
+import { useBudgetDownloadRevision } from '@/hooks/use-budget-download-revision';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
@@ -65,6 +66,7 @@ export default function HomeScreen() {
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
 
   const database = useSQLiteContext();
+  const downloadRevision = useBudgetDownloadRevision();
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -148,7 +150,9 @@ export default function HomeScreen() {
       return () => {
         active = false;
       };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- An applied download refreshes the focused query.
     }, [
+      downloadRevision,
       database,
       type,
       period,

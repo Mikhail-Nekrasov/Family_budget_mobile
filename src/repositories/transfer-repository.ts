@@ -4,7 +4,8 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { TransferHistoryItem } from '@/models/transfer';
 import { getAccountBySyncId } from '@/repositories/account-repository';
 import { isEntryDateAllowed } from '@/utils/entry-period';
-import { enqueueSyncCommand } from './sync-outbox-repository';
+import { runBudgetMutation } from '@/database/budget-mutation';
+import { enqueueSyncCommand, queueSyncDelete, queueSyncUpdate } from './sync-outbox-repository';
 
 type TransferInput = {
   fromAccountSyncId: string;
@@ -61,35 +62,6 @@ function transferSyncPayload(row: TransferSyncRow) {
   };
 }
 
-async function queueTransferChange(tx: SQLiteDatabase, row: TransferSyncRow): Promise<void> {
-  if (row.serverId === null) {
-    const pending = await tx.getFirstAsync<{ commandId: string }>(
-      `SELECT command_id AS commandId FROM sync_outbox
-       WHERE entity_type = 'TRANSFER' AND entity_sync_id = ? AND operation = 'CREATE'
-       ORDER BY rowid LIMIT 1`,
-      row.syncId,
-    );
-    if (!pending) {
-      // Legacy local transfers predate the outbox. Queue their current state as CREATE.
-      await enqueueSyncCommand(tx, {
-        entityType: 'TRANSFER', entitySyncId: row.syncId, operation: 'CREATE',
-        payload: transferSyncPayload(row), expectedServerVersion: null,
-      });
-      return;
-    }
-    await tx.runAsync(
-      'UPDATE sync_outbox SET payload_json = ? WHERE command_id = ?',
-      JSON.stringify(transferSyncPayload(row)),
-      pending.commandId,
-    );
-  } else {
-    await enqueueSyncCommand(tx, {
-      entityType: 'TRANSFER', entitySyncId: row.syncId, operation: 'UPDATE',
-      payload: transferSyncPayload(row), expectedServerVersion: row.serverVersion,
-    });
-  }
-}
-
 async function readStoredTransfer(database: SQLiteDatabase, syncId: string): Promise<StoredTransfer> {
   const transfer = await database.getFirstAsync<StoredTransfer>(
     `SELECT from_account_sync_id AS fromAccountSyncId,
@@ -140,7 +112,7 @@ async function prepareTransfer(
   };
 }
 
-async function applyBalanceChanges(
+export async function applyTransferBalanceChanges(
   database: SQLiteDatabase,
   previous: StoredTransfer | null,
   next: StoredTransfer | null,
@@ -184,7 +156,7 @@ async function applyBalanceChanges(
 export async function createTransfer(database: SQLiteDatabase, input: TransferInput): Promise<void> {
   validateInput(input);
 
-  await database.withExclusiveTransactionAsync(async (transaction) => {
+  await runBudgetMutation(database, async (transaction) => {
     const next = await prepareTransfer(transaction, input);
     const syncId = randomUUID();
     await transaction.runAsync(
@@ -197,7 +169,7 @@ export async function createTransfer(database: SQLiteDatabase, input: TransferIn
       next.amountMinor, next.targetAmountMinor, next.sourceCurrencyCode, next.targetCurrencyCode,
       input.dateTime.toISOString(), input.description.trim() || null,
     );
-    await applyBalanceChanges(transaction, null, next);
+    await applyTransferBalanceChanges(transaction, null, next);
     const row = await readTransferSyncRow(transaction, syncId);
     await enqueueSyncCommand(transaction, {
       entityType: 'TRANSFER', entitySyncId: syncId, operation: 'CREATE',
@@ -213,8 +185,8 @@ export async function updateTransfer(
 ): Promise<void> {
   validateInput(input);
 
-  await database.withExclusiveTransactionAsync(async (transaction) => {
-    const previous = await readStoredTransfer(transaction, syncId);
+  await runBudgetMutation(database, async (transaction) => {
+    const previous = await readTransferSyncRow(transaction, syncId);
     const next = await prepareTransfer(transaction, input, previous);
     const result = await transaction.runAsync(
       `UPDATE transfers SET
@@ -228,29 +200,35 @@ export async function updateTransfer(
       input.dateTime.toISOString(), input.description.trim() || null, syncId,
     );
     if (result.changes !== 1) throw new Error('Transfer could not be updated');
-    await applyBalanceChanges(transaction, previous, next);
-    await queueTransferChange(transaction, await readTransferSyncRow(transaction, syncId));
+    await applyTransferBalanceChanges(transaction, previous, next);
+    const row = await readTransferSyncRow(transaction, syncId);
+    await queueSyncUpdate(transaction, {
+      entityType: 'TRANSFER', entitySyncId: syncId,
+      serverId: row.serverId, serverVersion: row.serverVersion,
+    }, {
+      ...transferSyncPayload(row),
+      conflictBase: {
+        version: previous.serverVersion,
+        from_account_sync_id: previous.fromAccountSyncId, to_account_sync_id: previous.toAccountSyncId,
+        amount_minor: previous.amountMinor, target_amount_minor: previous.targetAmountMinor,
+        source_currency_code: previous.sourceCurrencyCode, target_currency_code: previous.targetCurrencyCode,
+        date_time: previous.dateTime, description: previous.description,
+      },
+    });
   });
 }
 
 export async function deleteTransfer(database: SQLiteDatabase, syncId: string): Promise<void> {
-  await database.withExclusiveTransactionAsync(async (transaction) => {
+  await runBudgetMutation(database, async (transaction) => {
     const previous = await readStoredTransfer(transaction, syncId);
     const row = await readTransferSyncRow(transaction, syncId);
     const result = await transaction.runAsync('DELETE FROM transfers WHERE sync_id = ?', syncId);
     if (result.changes !== 1) throw new Error('Transfer could not be deleted');
-    await applyBalanceChanges(transaction, previous, null);
-    if (row.serverId === null) {
-      await transaction.runAsync(
-        `DELETE FROM sync_outbox WHERE entity_type = 'TRANSFER' AND entity_sync_id = ?`,
-        syncId,
-      );
-    } else {
-      await enqueueSyncCommand(transaction, {
-        entityType: 'TRANSFER', entitySyncId: syncId, operation: 'DELETE',
-        payload: { syncId }, expectedServerVersion: row.serverVersion,
-      });
-    }
+    await applyTransferBalanceChanges(transaction, previous, null);
+    await queueSyncDelete(transaction, {
+      entityType: 'TRANSFER', entitySyncId: syncId,
+      serverId: row.serverId, serverVersion: row.serverVersion,
+    }, { fromAccountSyncId: row.fromAccountSyncId, toAccountSyncId: row.toAccountSyncId });
   });
 }
 

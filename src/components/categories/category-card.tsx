@@ -17,12 +17,14 @@ type CategoryCardProps = {
   category: Category;
   onLayout?: () => void;
   onPress: () => void;
+  onLongPress?: () => void;
 };
 
 export function CategoryCard({
   category,
   onLayout,
   onPress,
+  onLongPress,
 }: CategoryCardProps) {
   const { language } = useLanguage();
   const dark = useColorScheme() === 'dark';
@@ -54,6 +56,8 @@ export function CategoryCard({
       accessibilityRole="button"
       accessibilityLabel={getCategoryName(category, language)}
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={500}
       onLayout={onLayout}
       style={({ pressed }) => [styles.card, { opacity: pressed ? 0.75 : 1 }]}
     >

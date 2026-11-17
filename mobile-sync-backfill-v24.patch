@@ -1,0 +1,138 @@
+diff --git a/src/database/initialize-database.ts b/src/database/initialize-database.ts
+index 787c18d..3e7d38b 100644
+--- a/src/database/initialize-database.ts
++++ b/src/database/initialize-database.ts
+@@ -9,7 +9,9 @@ import { en } from '@/i18n/en';
+ import { randomUUID } from 'expo-crypto';
+ import type { SQLiteDatabase } from 'expo-sqlite';
+ 
+-const DATABASE_VERSION = 23;
++import { queueExistingLocalData } from './queue-existing-local-data';
++
++const DATABASE_VERSION = 24;
+ 
+ // The original account palette is needed for both color migrations.
+ const LEGACY_ACCOUNT_ICON_COLOR_ROWS = [
+@@ -561,6 +563,10 @@ export async function initializeDatabase(
+       `);
+     }
+ 
++    if (currentVersion < 24) {
++      await queueExistingLocalData(database);
++    }
++
+     await database.execAsync(
+       `PRAGMA user_version = ${DATABASE_VERSION}`,
+     );
+diff --git a/src/repositories/sync-outbox-repository.ts b/src/repositories/sync-outbox-repository.ts
+index 7a8885c..671e200 100644
+--- a/src/repositories/sync-outbox-repository.ts
++++ b/src/repositories/sync-outbox-repository.ts
+@@ -49,13 +49,19 @@ export async function getPendingSyncCommands(
+   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) {
+     throw new Error('Invalid sync outbox batch size');
+   }
++  // A dependent CREATE may predate its parent after backfill or an offline edit.
+   return database.getAllAsync<PendingSyncCommand>(
+     `SELECT command_id AS commandId, entity_type AS entityType,
+       entity_sync_id AS entitySyncId, operation,
+       payload_json AS payloadJson,
+       expected_server_version AS expectedServerVersion,
+       created_at AS createdAt, attempts
+-     FROM sync_outbox ORDER BY created_at, rowid LIMIT ?`,
++     FROM sync_outbox
++     ORDER BY CASE
++       WHEN operation = 'CREATE' AND entity_type IN ('ACCOUNT', 'CATEGORY') THEN 0
++       ELSE 1
++     END, rowid
++     LIMIT ?`,
+     limit,
+   );
+ }
+diff --git a/src/database/queue-existing-local-data.ts b/src/database/queue-existing-local-data.ts
+new file mode 100644
+index 0000000..1074b40
+--- /dev/null
++++ b/src/database/queue-existing-local-data.ts
+@@ -0,0 +1,81 @@
++import type { SQLiteDatabase } from 'expo-sqlite';
++
++// Run inside the schema migration transaction. Existing commands retain their IDs and payloads.
++export async function queueExistingLocalData(database: Pick<SQLiteDatabase, 'execAsync'>): Promise<void> {
++  await database.execAsync(`
++    CREATE INDEX idx_sync_outbox_entity
++      ON sync_outbox(entity_type, entity_sync_id, operation);
++
++    WITH local_entities(entity_type, sync_id, payload_json) AS (
++      SELECT 'ACCOUNT', sync_id, json_object(
++        'syncId', sync_id,
++        'name', name,
++        'openingBalanceMinor', opening_balance_minor,
++        'description', description,
++        'currencyCode', currency_code,
++        'iconKey', icon_key
++      )
++      FROM accounts
++      WHERE server_id IS NULL
++
++      UNION ALL
++
++      SELECT 'CATEGORY', sync_id, json_object(
++        'syncId', sync_id,
++        'name', name,
++        'type', type,
++        'iconKey', icon_key,
++        'iconColor', icon_color,
++        'defaultKey', default_key,
++        'nameOverrides', json(name_overrides_json)
++      )
++      FROM categories
++      WHERE server_id IS NULL
++
++      UNION ALL
++
++      SELECT 'ENTRY', sync_id, json_object(
++        'syncId', sync_id,
++        'title', title,
++        'type', type,
++        'amountMinor', amount_minor,
++        'dateTime', date_time,
++        'description', description,
++        'accountSyncId', account_sync_id,
++        'categorySyncId', category_sync_id
++      )
++      FROM entries
++      WHERE server_id IS NULL
++
++      UNION ALL
++
++      SELECT 'TRANSFER', sync_id, json_object(
++        'syncId', sync_id,
++        'fromAccountSyncId', from_account_sync_id,
++        'toAccountSyncId', to_account_sync_id,
++        'amountMinor', amount_minor,
++        'targetAmountMinor', target_amount_minor,
++        'sourceCurrencyCode', source_currency_code,
++        'targetCurrencyCode', target_currency_code,
++        'dateTime', date_time,
++        'description', description
++      )
++      FROM transfers
++      WHERE server_id IS NULL
++    )
++    INSERT INTO sync_outbox (command_id, entity_type, entity_sync_id, operation, payload_json)
++    SELECT
++      lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' ||
++        substr(hex(randomblob(2)), 2) || '-' ||
++        substr('89ab', (random() & 3) + 1, 1) || substr(hex(randomblob(2)), 2) ||
++        '-' || hex(randomblob(6))),
++      entity.entity_type, entity.sync_id, 'CREATE', entity.payload_json
++    FROM local_entities entity
++    WHERE NOT EXISTS (
++      SELECT 1 FROM sync_outbox queued
++      WHERE queued.entity_type = entity.entity_type
++        AND queued.entity_sync_id = entity.sync_id
++        AND queued.operation = 'CREATE'
++    );
++  `);
++}

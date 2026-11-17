@@ -78,9 +78,9 @@ function updateVault(update: (vault: Vault) => Vault): Promise<void> {
   return next;
 }
 
-export async function restoreProfile(): Promise<AuthUser | null> {
+export async function restoreProfile(expectedUserId?: string): Promise<AuthUser | null> {
   const vault = await readVault();
-  if (!vault.active?.token) return null;
+  if (!vault.active?.token || (expectedUserId !== undefined && vault.active.user.userId !== expectedUserId)) return null;
   requireSecureApi();
   try {
     await apiRequest('/api/auth/mobile/restore', {
@@ -100,6 +100,28 @@ export async function restoreProfile(): Promise<AuthUser | null> {
     }
     throw error;
   }
+}
+
+export async function ensureProfileSession(userId: string): Promise<AuthUser | null> {
+  const local = await readLocalProfile();
+  if (!local?.token || local.user.userId !== userId) return null;
+  requireSecureApi();
+
+  try {
+    const user = await currentUser();
+    if (user.userId === userId) return user;
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) throw error;
+  }
+  return restoreProfile(userId);
+}
+
+export async function openBudgetSession(userId: string): Promise<Record<string, string>> {
+  const user = await ensureProfileSession(userId);
+  if (user?.userId !== userId) {
+    throw new ApiError(401, 'The local budget profile could not be authenticated');
+  }
+  return csrfHeaders();
 }
 
 function clearMatchingProfileToken(profile: LocalProfile) {

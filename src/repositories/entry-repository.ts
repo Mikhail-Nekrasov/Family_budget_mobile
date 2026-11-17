@@ -3,10 +3,12 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { Entry } from '@/models/entry';
 import type { EntryType } from '@/models/entry-type';
+import { mergeEntryVersions, type EntrySyncConflict } from '@/services/entry-sync-conflict';
 import { getAccountBySyncId } from '@/repositories/account-repository';
 import { getCategoryBySyncId } from '@/repositories/category-repository';
 import { isEntryDateAllowed } from '@/utils/entry-period';
-import { enqueueSyncCommand } from './sync-outbox-repository';
+import { runBudgetMutation } from '@/database/budget-mutation';
+import { enqueueSyncCommand, queueSyncDelete, queueSyncUpdate } from './sync-outbox-repository';
 
 export type CreateEntryInput = {
   title: string;
@@ -81,46 +83,6 @@ function entrySyncPayload(entry: Entry) {
     accountSyncId: entry.accountSyncId,
     categorySyncId: entry.categorySyncId,
   };
-}
-
-/**
- * Unsynced entries keep a single CREATE with the latest values.
- * Synced entries receive a new UPDATE command.
- * This method must run inside the same transaction as the entry change.
- */
-async function queueEntryChange(
-  transaction: SQLiteDatabase,
-  entry: Entry,
-): Promise<void> {
-  if (entry.serverId === null) {
-    const pending = await transaction.getFirstAsync<{ commandId: string }>(
-      `SELECT command_id AS commandId FROM sync_outbox
-       WHERE entity_type = 'ENTRY' AND entity_sync_id = ? AND operation = 'CREATE'
-       ORDER BY rowid LIMIT 1`,
-      entry.syncId,
-    );
-    if (!pending) {
-      // Legacy entry: record its latest state as a CREATE.
-      await enqueueSyncCommand(transaction, {
-        entityType: 'ENTRY', entitySyncId: entry.syncId, operation: 'CREATE',
-        payload: entrySyncPayload(entry), expectedServerVersion: null,
-      });
-      return;
-    }
-    await transaction.runAsync(
-      'UPDATE sync_outbox SET payload_json = ? WHERE command_id = ?',
-      JSON.stringify(entrySyncPayload(entry)),
-      pending.commandId,
-    );
-  } else {
-    await enqueueSyncCommand(transaction, {
-      entityType: 'ENTRY',
-      entitySyncId: entry.syncId,
-      operation: 'UPDATE',
-      payload: entrySyncPayload(entry),
-      expectedServerVersion: entry.serverVersion,
-    });
-  }
 }
 
 export async function getEntries(
@@ -229,7 +191,8 @@ export async function createEntry(
     categorySyncId: input.categorySyncId,
   };
 
-  await database.withExclusiveTransactionAsync(
+  await runBudgetMutation(
+    database,
     async (transaction) => {
       const account = await getAccountBySyncId(
         transaction,
@@ -392,7 +355,7 @@ export async function updateEntry(
 
   const dateTime = formatLocalDateTime(input.dateTime);
 
-  await database.withExclusiveTransactionAsync(async (transaction) => {
+  await runBudgetMutation(database, async (transaction) => {
     const previous = await getEntryBySyncId(transaction, syncId);
 
     if (!previous) {
@@ -462,14 +425,20 @@ export async function updateEntry(
       throw new Error('Entry could not be updated');
     }
 
-    await queueEntryChange(transaction, {
-      ...previous,
-      title,
-      amountMinor: input.amountMinor,
-      dateTime,
-      description: input.description?.trim() || null,
-      accountSyncId: input.accountSyncId,
-      categorySyncId: input.categorySyncId,
+    await queueSyncUpdate(transaction, {
+      entityType: 'ENTRY', entitySyncId: syncId,
+      serverId: previous.serverId, serverVersion: previous.serverVersion,
+    }, {
+      conflictBase: { ...entrySyncPayload(previous), version: previous.serverVersion },
+      ...entrySyncPayload({
+        ...previous,
+        title,
+        amountMinor: input.amountMinor,
+        dateTime,
+        description: input.description?.trim() || null,
+        accountSyncId: input.accountSyncId,
+        categorySyncId: input.categorySyncId,
+      }),
     });
   });
 }
@@ -478,7 +447,7 @@ export async function deleteEntry(
   database: SQLiteDatabase,
   syncId: string,
 ): Promise<void> {
-  await database.withExclusiveTransactionAsync(async (transaction) => {
+  await runBudgetMutation(database, async (transaction) => {
     const entry = await getEntryBySyncId(transaction, syncId);
 
     if (!entry) {
@@ -500,19 +469,154 @@ export async function deleteEntry(
       throw new Error('Entry could not be deleted');
     }
 
-    if (entry.serverId === null) {
-      await transaction.runAsync(
-        `DELETE FROM sync_outbox WHERE entity_type = 'ENTRY' AND entity_sync_id = ?`,
-        syncId,
-      );
-    } else {
-      await enqueueSyncCommand(transaction, {
-        entityType: 'ENTRY',
-        entitySyncId: syncId,
-        operation: 'DELETE',
-        payload: { syncId },
-        expectedServerVersion: entry.serverVersion,
-      });
+    await queueSyncDelete(transaction, {
+      entityType: 'ENTRY', entitySyncId: syncId,
+      serverId: entry.serverId, serverVersion: entry.serverVersion,
+    }, { accountSyncId: entry.accountSyncId, categorySyncId: entry.categorySyncId });
+  });
+}
+
+
+export class EntryConflictChangedError extends Error {}
+
+export async function resolveEntrySyncConflict(
+  database: SQLiteDatabase,
+  conflict: EntrySyncConflict,
+  choice: 'server' | 'local',
+): Promise<void> {
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    const { syncId, commandId, expectedVersion, server, local } = conflict;
+    const queued = await transaction.getAllAsync<{ id: string; operation: string; version: number; attempts: number }>(
+      `SELECT command_id AS id, operation, expected_server_version AS version, attempts
+       FROM sync_outbox WHERE entity_type = 'ENTRY' AND entity_sync_id = ? ORDER BY rowid`, syncId,
+    );
+    const [head, ...later] = queued;
+    const entry = await getEntryBySyncId(transaction, syncId);
+    if (!head || head.id !== commandId || head.version !== expectedVersion
+        || later.some((command) => command.attempts !== 0)) {
+      throw new Error('The entry has other operations that require reconciliation');
     }
+    if (!server) {
+      if (head.operation !== 'UPDATE' || later.some((command, index) =>
+        command.operation !== 'UPDATE' && !(index === later.length - 1 && command.operation === 'DELETE'))) {
+        throw new Error('The entry has other operations that require reconciliation');
+      }
+      if (Boolean(entry) === Boolean(conflict.localDeleted)
+          || (entry && (entry.title !== local.title || entry.type !== local.type || entry.amountMinor !== local.amountMinor
+            || entry.dateTime.slice(0, 19) !== local.dateTime || (entry.description || null) !== local.description
+            || entry.accountSyncId !== local.accountSyncId || entry.categorySyncId !== local.categorySyncId))) {
+        throw new EntryConflictChangedError('The local entry changed after the comparison was shown');
+      }
+      await transaction.runAsync(
+        "DELETE FROM sync_outbox WHERE entity_type = 'ENTRY' AND entity_sync_id = ?", syncId,
+      );
+      if (choice === 'local') {
+        if (!entry || entry.serverVersion !== expectedVersion) throw new Error('The entry cannot be recreated');
+        const replacementId = randomUUID();
+        await transaction.runAsync(
+          'UPDATE entries SET sync_id = ?, server_id = NULL, server_version = NULL WHERE sync_id = ?',
+          replacementId, syncId,
+        );
+        await enqueueSyncCommand(transaction, {
+          entityType: 'ENTRY', entitySyncId: replacementId, operation: 'CREATE',
+          payload: entrySyncPayload({ ...entry, syncId: replacementId }), expectedServerVersion: null,
+        });
+      } else if (entry) {
+        const direction = entry.type === 'EXPENSE' ? 1 : -1;
+        await changeBalance(transaction, entry.accountSyncId, direction * entry.amountMinor);
+        await transaction.runAsync('DELETE FROM entries WHERE sync_id = ?', syncId);
+      }
+      return;
+    }
+
+    const lastOperation = queued.at(-1)?.operation;
+    if (lastOperation === 'DELETE' && !entry) {
+      if (!conflict.localDeleted) throw new EntryConflictChangedError('The entry was deleted during comparison');
+      if (queued.slice(0, -1).some((command) => command.operation !== 'UPDATE')) {
+        throw new Error('The entry has other operations that require reconciliation');
+      }
+
+      await transaction.runAsync(
+        `DELETE FROM sync_outbox WHERE entity_type = 'ENTRY' AND entity_sync_id = ? AND command_id <> ?`,
+        syncId, commandId,
+      );
+      if (choice === 'local') {
+        // The local deletion already adjusted the balance. Send only the deletion.
+        await transaction.runAsync(
+          `UPDATE sync_outbox SET command_id = ?, operation = 'DELETE', payload_json = ?,
+             expected_server_version = ?, attempts = 0, request_json = NULL, conflict_json = NULL WHERE command_id = ?`,
+          randomUUID(), JSON.stringify({ syncId }), server.version, commandId,
+        );
+      } else {
+        const account = await getAccountBySyncId(transaction, server.accountSyncId);
+        const category = await getCategoryBySyncId(transaction, server.categorySyncId);
+        if (server.id === null || !account || account.currencyCode !== server.currencyCode
+            || category?.type !== server.type) {
+          throw new Error('The server entry, account or category is unavailable locally');
+        }
+        await transaction.runAsync(
+          `INSERT INTO entries (sync_id, server_id, server_version, title, type, amount_minor,
+             date_time, description, account_sync_id, category_sync_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          syncId, server.id, server.version, server.title, server.type, server.amountMinor,
+          server.dateTime, server.description, server.accountSyncId, server.categorySyncId,
+        );
+        await changeBalance(transaction, server.accountSyncId,
+          server.type === 'EXPENSE' ? -server.amountMinor : server.amountMinor);
+        await transaction.runAsync('DELETE FROM sync_outbox WHERE command_id = ?', commandId);
+      }
+      return;
+    }
+
+    if (head.operation !== 'UPDATE' || entry?.serverVersion !== expectedVersion
+        || later.some((command) => command.operation !== 'UPDATE')) {
+      throw new Error('The entry has other operations that require reconciliation');
+    }
+    if (entry.title !== local.title || entry.type !== local.type || entry.amountMinor !== local.amountMinor
+        || entry.dateTime.slice(0, 19) !== local.dateTime || (entry.description || null) !== local.description
+        || entry.accountSyncId !== local.accountSyncId || entry.categorySyncId !== local.categorySyncId) {
+      throw new EntryConflictChangedError('The local entry changed after the comparison was shown');
+    }
+
+    await transaction.runAsync(
+      `DELETE FROM sync_outbox WHERE entity_type = 'ENTRY' AND entity_sync_id = ? AND command_id <> ?`,
+      syncId, commandId,
+    );
+
+    const merge = mergeEntryVersions(conflict, choice);
+    const next = merge?.merged ?? (choice === 'local' ? local : server);
+    const needsUpload = merge?.needsUpload ?? choice === 'local';
+
+    const account = await getAccountBySyncId(transaction, next.accountSyncId);
+    const category = await getCategoryBySyncId(transaction, next.categorySyncId);
+    if (!account || (next.currencyCode && account.currencyCode !== next.currencyCode) || category?.type !== next.type) {
+      throw new Error('The chosen account or category is unavailable locally');
+    }
+    if (needsUpload && account.archivedAt !== null && next.accountSyncId !== server.accountSyncId) {
+      throw new Error('A new entry account must be active');
+    }
+    const direction = entry.type === 'EXPENSE' ? -1 : 1;
+    if (entry.accountSyncId === next.accountSyncId) {
+      await changeBalance(transaction, entry.accountSyncId, direction * (next.amountMinor - entry.amountMinor));
+    } else {
+      await changeBalance(transaction, entry.accountSyncId, -direction * entry.amountMinor);
+      await changeBalance(transaction, next.accountSyncId, direction * next.amountMinor);
+    }
+    await transaction.runAsync(
+      `UPDATE entries SET title = ?, amount_minor = ?, date_time = ?, description = ?,
+         account_sync_id = ?, category_sync_id = ?, server_version = ? WHERE sync_id = ?`,
+      next.title, next.amountMinor, next.dateTime, next.description,
+      next.accountSyncId, next.categorySyncId, server.version, syncId,
+    );
+    if (needsUpload) {
+      await transaction.runAsync(
+        `UPDATE sync_outbox SET command_id = ?, payload_json = ?, expected_server_version = ?,
+           attempts = 0, request_json = NULL, conflict_json = NULL WHERE command_id = ?`,
+        randomUUID(), JSON.stringify({ ...entrySyncPayload({ ...entry, ...next }), conflictBase: server }),
+        server.version, commandId,
+      );
+      return;
+    }
+    await transaction.runAsync('DELETE FROM sync_outbox WHERE command_id = ?', commandId);
   });
 }

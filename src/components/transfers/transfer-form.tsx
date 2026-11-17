@@ -1,3 +1,4 @@
+import { FormHeader } from '@/components/form-header';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -12,7 +13,7 @@ import {
   useColorScheme,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AccountSelect } from '@/components/accounts/account-select';
 import { AppButton } from '@/components/app-button';
@@ -70,6 +71,7 @@ function formatMinorForInput(value: number, currency: string): string {
 }
 
 export function TransferForm({ accounts, initialSelection, transfer, onSavingChange, onSaved, onCancel }: Props) {
+  const bottomInset = useSafeAreaInsets().bottom;
   const database = useSQLiteContext();
   const { translations } = useLanguage();
   const dark = useColorScheme() === 'dark';
@@ -263,12 +265,10 @@ export function TransferForm({ accounts, initialSelection, transfer, onSavingCha
 
   return (
     <ScreenBackground>
-      <SafeAreaView style={styles.screen} {...outsideTapHandlers}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.screen} {...outsideTapHandlers}>
+        <FormHeader title={transfer ? translations.editTransfer : translations.newTransfer} onBack={onCancel} disabled={saving} />
         <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-            <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>
-              {transfer ? translations.editTransfer : translations.newTransfer}
-            </Text>
+          <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
 
             {(['fromId', 'toId'] as const).map((field) => {
               const isSource = field === 'fromId';
@@ -383,39 +383,39 @@ export function TransferForm({ accounts, initialSelection, transfer, onSavingCha
               />
             </View>
 
-            <View style={styles.actions}>
-              <AppButton
-                title={pendingAction === 'save' ? translations.saving : translations.save}
-                nativeGlass
-                rightIcon="check"
-                keepTitleCentered
-                disabled={loadingRate || pendingAction === 'delete'}
-                loading={pendingAction === 'save'}
-                onPress={() => void save()}
-              />
-              {transfer && (
-                <AppButton
-                  title={translations.deleteTransfer}
-                  nativeGlass
-                  rightIcon="delete"
-                  keepTitleCentered
-                  variant="danger"
-                  disabled={loadingRate || pendingAction === 'save'}
-                  loading={pendingAction === 'delete'}
-                  onPress={confirmDelete}
-                />
-              )}
-              <AppButton
-                title={translations.cancel}
-                nativeGlass
-                rightIcon="cancel"
-                keepTitleCentered
-                disabled={saving}
-                onPress={onCancel}
-              />
-            </View>
           </ScrollView>
         </KeyboardAvoidingView>
+          <View style={[styles.actions, { marginBottom: -Math.min(24, bottomInset) }]}>
+            <AppButton
+              title={pendingAction === 'save' ? translations.saving : translations.save}
+              nativeGlass
+              rightIcon="check"
+              keepTitleCentered
+              disabled={loadingRate || pendingAction === 'delete'}
+              loading={pendingAction === 'save'}
+              onPress={() => void save()}
+            />
+            {transfer && (
+              <AppButton
+                title={translations.deleteTransfer}
+                nativeGlass
+                rightIcon="delete"
+                keepTitleCentered
+                variant="danger"
+                disabled={loadingRate || pendingAction === 'save'}
+                loading={pendingAction === 'delete'}
+                onPress={confirmDelete}
+              />
+            )}
+            <AppButton
+              title={translations.cancel}
+              nativeGlass
+              rightIcon="cancel"
+              keepTitleCentered
+              disabled={saving}
+              onPress={onCancel}
+            />
+          </View>
       </SafeAreaView>
     </ScreenBackground>
   );
@@ -424,7 +424,6 @@ export function TransferForm({ accounts, initialSelection, transfer, onSavingCha
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: 20, gap: 12 },
-  title: { fontSize: 26, fontWeight: '600' },
   field: { gap: 6 },
   label: { fontSize: 15, fontWeight: '600' },
   input: {
@@ -447,7 +446,10 @@ const styles = StyleSheet.create({
   rateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   rateField: { flex: 2, minWidth: 0 },
   rateButton: { flex: 1, minWidth: 0 },
-  actions: { gap: 8 },
+  actions: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 10, gap: 8 },
   rateLabel: {
     marginTop: -22,
     marginBottom: 0,

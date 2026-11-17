@@ -48,7 +48,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test:sync": "node --experimental-transform-types --test tests/entry-sync-conflicts.test.mjs"
   },
   "private": true
 }

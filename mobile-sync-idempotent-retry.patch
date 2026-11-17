@@ -1,0 +1,535 @@
+diff --git a/src/repositories/account-repository.ts b/src/repositories/account-repository.ts
+index b5e4b48..9adb0e2 100644
+--- a/src/repositories/account-repository.ts
++++ b/src/repositories/account-repository.ts
+@@ -4,7 +4,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
+ import { isIconColor } from '@/constants/icon-colors';
+ import type { Account } from '@/models/account';
+ import { markAccountOrderChanged } from './account-order-sync-repository';
+-import { enqueueSyncCommand } from './sync-outbox-repository';
++import { enqueueSyncCommand, queueSyncDelete, queueSyncUpdate } from './sync-outbox-repository';
+ 
+ export type CreateAccountInput = {
+   name: string;
+@@ -204,48 +204,12 @@ export async function updateAccount(
+       input.isHidden, syncId,
+     );
+     if (result.changes !== 1) throw new Error('Account not found');
+-    if (current.serverId === null) {
+-      // The account has not reached the server. Keep its original CREATE
+-      // (including opening balance and currency) and update only editable fields.
+-      const pendingCreate = await transaction.getFirstAsync<{ commandId: string; payloadJson: string }>(
+-        `SELECT command_id AS commandId, payload_json AS payloadJson
+-         FROM sync_outbox
+-         WHERE entity_type = 'ACCOUNT' AND entity_sync_id = ? AND operation = 'CREATE'
+-         ORDER BY rowid LIMIT 1`,
+-        syncId,
+-      );
+-      if (!pendingCreate) {
+-        // This account existed before the sync outbox was introduced.
+-        // Preserve its original opening balance rather than its current balance.
+-        await enqueueSyncCommand(transaction, {
+-          entityType: 'ACCOUNT', entitySyncId: syncId, operation: 'CREATE',
+-          payload: {
+-            syncId, name, description, iconKey: input.iconKey,
+-            openingBalanceMinor: current.openingBalanceMinor,
+-            currencyCode: current.currencyCode,
+-          },
+-          expectedServerVersion: null,
+-        });
+-      } else {
+-      const originalPayload = JSON.parse(pendingCreate.payloadJson) as Record<string, unknown>;
+-      await transaction.runAsync(
+-        `UPDATE sync_outbox SET payload_json = ? WHERE command_id = ?`,
+-        JSON.stringify({
+-          ...originalPayload,
+-          name,
+-          description,
+-          iconKey: input.iconKey,
+-        }),
+-        pendingCreate.commandId,
+-      );
+-      }
+-    } else {
+-      await enqueueSyncCommand(transaction, {
+-        entityType: 'ACCOUNT', entitySyncId: syncId, operation: 'UPDATE',
+-        payload: { syncId, name, description, iconKey: input.iconKey },
+-        expectedServerVersion: current.serverVersion,
+-      });
+-    }
++    await queueSyncUpdate(
++      transaction,
++      { entityType: 'ACCOUNT', entitySyncId: syncId, serverId: current.serverId, serverVersion: current.serverVersion },
++      { syncId, name, description, iconKey: input.iconKey },
++      { openingBalanceMinor: current.openingBalanceMinor, currencyCode: current.currencyCode },
++    );
+   });
+ }
+ 
+@@ -358,12 +322,9 @@ export async function deleteLocalAccount(
+         syncId,
+       );
+ 
+-      // This account has never been synchronized, so no DELETE should be
+-      // sent. Remove its pending CREATE and any related queued changes.
+-      await transaction.runAsync(
+-        `DELETE FROM sync_outbox WHERE entity_type = 'ACCOUNT' AND entity_sync_id = ?`,
+-        syncId,
+-      );
++      await queueSyncDelete(transaction, {
++        entityType: 'ACCOUNT', entitySyncId: syncId, serverId: null, serverVersion: null,
++      });
+       await markAccountOrderChanged(transaction);
+     },
+   );
+diff --git a/src/repositories/category-repository.ts b/src/repositories/category-repository.ts
+index 11a94c3..e700f52 100644
+--- a/src/repositories/category-repository.ts
++++ b/src/repositories/category-repository.ts
+@@ -6,7 +6,7 @@ import type { Language } from '@/i18n/languages';
+ import type { Category } from '@/models/category';
+ import type { EntryType } from '@/models/entry-type';
+ import { getCategoryName } from '@/utils/category-name';
+-import { enqueueSyncCommand } from './sync-outbox-repository';
++import { enqueueSyncCommand, queueSyncDelete, queueSyncUpdate } from './sync-outbox-repository';
+ 
+ export type CreateCategoryInput = {
+   name: string;
+@@ -189,35 +189,10 @@ export async function updateCategory(
+       iconKey: updated.iconKey, iconColor: updated.iconColor,
+       defaultKey: updated.defaultKey, nameOverrides: updated.nameOverrides,
+     };
+-    if (current.serverId === null) {
+-      // The server has never seen this category. Keep a single CREATE with
+-      // the latest values instead of queuing UPDATE commands that cannot apply.
+-      const pendingCreate = await transaction.getFirstAsync<{ commandId: string }>(
+-        `SELECT command_id AS commandId FROM sync_outbox
+-         WHERE entity_type = 'CATEGORY' AND entity_sync_id = ? AND operation = 'CREATE'
+-         ORDER BY rowid LIMIT 1`,
+-        syncId,
+-      );
+-      if (!pendingCreate) {
+-        // Legacy local category: first edit must create it on the server.
+-        await enqueueSyncCommand(transaction, {
+-          entityType: 'CATEGORY', entitySyncId: syncId, operation: 'CREATE',
+-          payload, expectedServerVersion: null,
+-        });
+-      } else {
+-      await transaction.runAsync(
+-        `UPDATE sync_outbox SET payload_json = ? WHERE command_id = ?`,
+-        JSON.stringify(payload),
+-        pendingCreate.commandId,
+-      );
+-      }
+-    } else {
+-      await enqueueSyncCommand(transaction, {
+-        entityType: 'CATEGORY', entitySyncId: syncId, operation: 'UPDATE',
+-        payload,
+-        expectedServerVersion: current.serverVersion,
+-      });
+-    }
++    await queueSyncUpdate(transaction, {
++      entityType: 'CATEGORY', entitySyncId: syncId,
++      serverId: current.serverId, serverVersion: current.serverVersion,
++    }, payload);
+   });
+   if (!updated) {
+     throw new Error('Updated category not found');
+@@ -260,18 +235,9 @@ export async function deleteLocalCategory(
+     );
+     if (result.changes !== 1) throw new CategoryInUseError();
+ 
+-    if (current.serverId === null) {
+-      // This category has never been uploaded. Cancel all its pending changes.
+-      await transaction.runAsync(
+-        `DELETE FROM sync_outbox WHERE entity_type = 'CATEGORY' AND entity_sync_id = ?`,
+-        syncId,
+-      );
+-    } else {
+-      await enqueueSyncCommand(transaction, {
+-        entityType: 'CATEGORY', entitySyncId: syncId, operation: 'DELETE',
+-        payload: { syncId, serverId: current.serverId },
+-        expectedServerVersion: current.serverVersion,
+-      });
+-    }
++    await queueSyncDelete(transaction, {
++      entityType: 'CATEGORY', entitySyncId: syncId,
++      serverId: current.serverId, serverVersion: current.serverVersion,
++    });
+   });
+ }
+diff --git a/src/repositories/entry-repository.ts b/src/repositories/entry-repository.ts
+index 61d53f5..d207828 100644
+--- a/src/repositories/entry-repository.ts
++++ b/src/repositories/entry-repository.ts
+@@ -6,7 +6,7 @@ import type { EntryType } from '@/models/entry-type';
+ import { getAccountBySyncId } from '@/repositories/account-repository';
+ import { getCategoryBySyncId } from '@/repositories/category-repository';
+ import { isEntryDateAllowed } from '@/utils/entry-period';
+-import { enqueueSyncCommand } from './sync-outbox-repository';
++import { enqueueSyncCommand, queueSyncDelete, queueSyncUpdate } from './sync-outbox-repository';
+ 
+ export type CreateEntryInput = {
+   title: string;
+@@ -83,46 +83,6 @@ function entrySyncPayload(entry: Entry) {
+   };
+ }
+ 
+-/**
+- * Unsynced entries keep a single CREATE with the latest values.
+- * Synced entries receive a new UPDATE command.
+- * This method must run inside the same transaction as the entry change.
+- */
+-async function queueEntryChange(
+-  transaction: SQLiteDatabase,
+-  entry: Entry,
+-): Promise<void> {
+-  if (entry.serverId === null) {
+-    const pending = await transaction.getFirstAsync<{ commandId: string }>(
+-      `SELECT command_id AS commandId FROM sync_outbox
+-       WHERE entity_type = 'ENTRY' AND entity_sync_id = ? AND operation = 'CREATE'
+-       ORDER BY rowid LIMIT 1`,
+-      entry.syncId,
+-    );
+-    if (!pending) {
+-      // Legacy entry: record its latest state as a CREATE.
+-      await enqueueSyncCommand(transaction, {
+-        entityType: 'ENTRY', entitySyncId: entry.syncId, operation: 'CREATE',
+-        payload: entrySyncPayload(entry), expectedServerVersion: null,
+-      });
+-      return;
+-    }
+-    await transaction.runAsync(
+-      'UPDATE sync_outbox SET payload_json = ? WHERE command_id = ?',
+-      JSON.stringify(entrySyncPayload(entry)),
+-      pending.commandId,
+-    );
+-  } else {
+-    await enqueueSyncCommand(transaction, {
+-      entityType: 'ENTRY',
+-      entitySyncId: entry.syncId,
+-      operation: 'UPDATE',
+-      payload: entrySyncPayload(entry),
+-      expectedServerVersion: entry.serverVersion,
+-    });
+-  }
+-}
+-
+ export async function getEntries(
+   database: SQLiteDatabase,
+   query: EntryQuery,
+@@ -462,7 +422,10 @@ export async function updateEntry(
+       throw new Error('Entry could not be updated');
+     }
+ 
+-    await queueEntryChange(transaction, {
++    await queueSyncUpdate(transaction, {
++      entityType: 'ENTRY', entitySyncId: syncId,
++      serverId: previous.serverId, serverVersion: previous.serverVersion,
++    }, entrySyncPayload({
+       ...previous,
+       title,
+       amountMinor: input.amountMinor,
+@@ -470,7 +433,7 @@ export async function updateEntry(
+       description: input.description?.trim() || null,
+       accountSyncId: input.accountSyncId,
+       categorySyncId: input.categorySyncId,
+-    });
++    }));
+   });
+ }
+ 
+@@ -500,19 +463,9 @@ export async function deleteEntry(
+       throw new Error('Entry could not be deleted');
+     }
+ 
+-    if (entry.serverId === null) {
+-      await transaction.runAsync(
+-        `DELETE FROM sync_outbox WHERE entity_type = 'ENTRY' AND entity_sync_id = ?`,
+-        syncId,
+-      );
+-    } else {
+-      await enqueueSyncCommand(transaction, {
+-        entityType: 'ENTRY',
+-        entitySyncId: syncId,
+-        operation: 'DELETE',
+-        payload: { syncId },
+-        expectedServerVersion: entry.serverVersion,
+-      });
+-    }
++    await queueSyncDelete(transaction, {
++      entityType: 'ENTRY', entitySyncId: syncId,
++      serverId: entry.serverId, serverVersion: entry.serverVersion,
++    });
+   });
+ }
+diff --git a/src/repositories/sync-outbox-repository.ts b/src/repositories/sync-outbox-repository.ts
+index 671e200..f25ef42 100644
+--- a/src/repositories/sync-outbox-repository.ts
++++ b/src/repositories/sync-outbox-repository.ts
+@@ -42,6 +42,88 @@ export async function enqueueSyncCommand(
+   return commandId;
+ }
+ 
++const COMMAND_COLUMNS = `
++  command_id AS commandId, entity_type AS entityType,
++  entity_sync_id AS entitySyncId, operation,
++  payload_json AS payloadJson, expected_server_version AS expectedServerVersion,
++  created_at AS createdAt, attempts
++`;
++
++const COMMAND_ORDER = `
++  CASE WHEN operation = 'CREATE' AND entity_type IN ('ACCOUNT', 'CATEGORY') THEN 0
++    ELSE 1
++  END, rowid
++`;
++
++type SyncEntity = {
++  entityType: SyncEntityType;
++  entitySyncId: string;
++  serverId: number | null;
++  serverVersion: number | null;
++};
++
++/** Call inside the same transaction as the local edit. */
++export async function queueSyncUpdate(
++  transaction: SQLiteDatabase,
++  entity: SyncEntity,
++  payload: object,
++  createFields: object = {},
++): Promise<void> {
++  const latest = await transaction.getFirstAsync<
++    Pick<PendingSyncCommand, 'commandId' | 'operation' | 'attempts'>
++  >(
++    `SELECT command_id AS commandId, operation, attempts
++     FROM sync_outbox WHERE entity_type = ? AND entity_sync_id = ?
++     ORDER BY rowid DESC LIMIT 1`,
++    entity.entityType, entity.entitySyncId,
++  );
++
++  if (latest?.attempts === 0 && (latest.operation === 'CREATE' || latest.operation === 'UPDATE')) {
++    await transaction.runAsync(
++      'UPDATE sync_outbox SET payload_json = ? WHERE command_id = ?',
++      JSON.stringify(latest.operation === 'CREATE' ? { ...createFields, ...payload } : payload),
++      latest.commandId,
++    );
++    return;
++  }
++
++  const create = entity.serverId === null && !latest;
++  await enqueueSyncCommand(transaction, {
++    ...entity,
++    operation: create ? 'CREATE' : 'UPDATE',
++    payload: create ? { ...createFields, ...payload } : payload,
++    expectedServerVersion: entity.serverVersion,
++  });
++}
++
++/** Call inside the same transaction as the local deletion. */
++export async function queueSyncDelete(
++  transaction: SQLiteDatabase,
++  entity: SyncEntity,
++): Promise<void> {
++  if (entity.serverId === null) {
++    const attempted = await transaction.getFirstAsync<{ attempted: number }>(
++      `SELECT 1 AS attempted FROM sync_outbox
++       WHERE entity_type = ? AND entity_sync_id = ? AND attempts > 0 LIMIT 1`,
++      entity.entityType, entity.entitySyncId,
++    );
++    if (!attempted) {
++      await transaction.runAsync(
++        'DELETE FROM sync_outbox WHERE entity_type = ? AND entity_sync_id = ?',
++        entity.entityType, entity.entitySyncId,
++      );
++      return;
++    }
++  }
++
++  await enqueueSyncCommand(transaction, {
++    ...entity,
++    operation: 'DELETE',
++    payload: { syncId: entity.entitySyncId },
++    expectedServerVersion: entity.serverVersion,
++  });
++}
++
+ export async function getPendingSyncCommands(
+   database: SQLiteDatabase,
+   limit = 50,
+@@ -49,37 +131,70 @@ export async function getPendingSyncCommands(
+   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) {
+     throw new Error('Invalid sync outbox batch size');
+   }
+-  // A dependent CREATE may predate its parent after backfill or an offline edit.
+   return database.getAllAsync<PendingSyncCommand>(
+-    `SELECT command_id AS commandId, entity_type AS entityType,
+-      entity_sync_id AS entitySyncId, operation,
+-      payload_json AS payloadJson,
+-      expected_server_version AS expectedServerVersion,
+-      created_at AS createdAt, attempts
+-     FROM sync_outbox
+-     ORDER BY CASE
+-       WHEN operation = 'CREATE' AND entity_type IN ('ACCOUNT', 'CATEGORY') THEN 0
+-       ELSE 1
+-     END, rowid
+-     LIMIT ?`,
++    `SELECT ${COMMAND_COLUMNS} FROM sync_outbox ORDER BY ${COMMAND_ORDER} LIMIT ?`,
+     limit,
+   );
+ }
+ 
+-/** Acknowledge ONLY after the server has durably accepted this command. */
+-export async function acknowledgeSyncCommand(
++/** Claim one command before sending it. A retry claims the same immutable command. */
++export async function claimNextSyncCommand(
+   database: SQLiteDatabase,
+-  commandId: string,
+-): Promise<void> {
+-  await database.runAsync('DELETE FROM sync_outbox WHERE command_id = ?', commandId);
++): Promise<PendingSyncCommand | null> {
++  return database.getFirstAsync<PendingSyncCommand>(
++    `UPDATE sync_outbox SET attempts = attempts + 1
++     WHERE command_id = (
++       SELECT command_id FROM sync_outbox
++       ORDER BY CASE WHEN attempts > 0 THEN 0 ELSE 1 END, ${COMMAND_ORDER}
++       LIMIT 1
++     ) AND (operation = 'CREATE' OR expected_server_version IS NOT NULL)
++     RETURNING ${COMMAND_COLUMNS}`,
++  );
+ }
+ 
+-export async function recordSyncAttempt(
++const ENTITY_TABLE = {
++  ACCOUNT: 'accounts',
++  CATEGORY: 'categories',
++  ENTRY: 'entries',
++  TRANSFER: 'transfers',
++} as const;
++
++/** Apply a durable server acknowledgement together with its local metadata. */
++export async function acknowledgeSyncCommand(
+   database: SQLiteDatabase,
+   commandId: string,
++  serverEntity?: { id: number; version: number | null },
+ ): Promise<void> {
+-  await database.runAsync(
+-    'UPDATE sync_outbox SET attempts = attempts + 1 WHERE command_id = ?',
+-    commandId,
+-  );
++  await database.withExclusiveTransactionAsync(async (transaction) => {
++    const command = await transaction.getFirstAsync<PendingSyncCommand>(
++      `SELECT ${COMMAND_COLUMNS} FROM sync_outbox WHERE command_id = ? AND attempts > 0`,
++      commandId,
++    );
++    if (!command) return;
++
++    if (command.operation !== 'DELETE') {
++      if (!serverEntity || !Number.isSafeInteger(serverEntity.id) || serverEntity.id <= 0
++        || (serverEntity.version === null
++          ? command.entityType !== 'TRANSFER' || command.operation !== 'CREATE'
++          : !Number.isSafeInteger(serverEntity.version) || serverEntity.version < 0)) {
++        throw new Error('Missing or invalid server sync metadata');
++      }
++
++      await transaction.runAsync(
++        `UPDATE ${ENTITY_TABLE[command.entityType]} SET server_id = ?, server_version = ? WHERE sync_id = ?`,
++        serverEntity.id, serverEntity.version, command.entitySyncId,
++      );
++      await transaction.runAsync(
++        `UPDATE sync_outbox SET expected_server_version = ?
++         WHERE command_id = (
++           SELECT command_id FROM sync_outbox
++           WHERE entity_type = ? AND entity_sync_id = ? AND command_id <> ?
++           ORDER BY rowid LIMIT 1
++         ) AND attempts = 0 AND operation <> 'CREATE'`,
++        serverEntity.version, command.entityType, command.entitySyncId, commandId,
++      );
++    }
++
++    await transaction.runAsync('DELETE FROM sync_outbox WHERE command_id = ?', commandId);
++  });
+ }
+diff --git a/src/repositories/transfer-repository.ts b/src/repositories/transfer-repository.ts
+index 4e4e83b..25113d9 100644
+--- a/src/repositories/transfer-repository.ts
++++ b/src/repositories/transfer-repository.ts
+@@ -4,7 +4,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
+ import type { TransferHistoryItem } from '@/models/transfer';
+ import { getAccountBySyncId } from '@/repositories/account-repository';
+ import { isEntryDateAllowed } from '@/utils/entry-period';
+-import { enqueueSyncCommand } from './sync-outbox-repository';
++import { enqueueSyncCommand, queueSyncDelete, queueSyncUpdate } from './sync-outbox-repository';
+ 
+ type TransferInput = {
+   fromAccountSyncId: string;
+@@ -61,35 +61,6 @@ function transferSyncPayload(row: TransferSyncRow) {
+   };
+ }
+ 
+-async function queueTransferChange(tx: SQLiteDatabase, row: TransferSyncRow): Promise<void> {
+-  if (row.serverId === null) {
+-    const pending = await tx.getFirstAsync<{ commandId: string }>(
+-      `SELECT command_id AS commandId FROM sync_outbox
+-       WHERE entity_type = 'TRANSFER' AND entity_sync_id = ? AND operation = 'CREATE'
+-       ORDER BY rowid LIMIT 1`,
+-      row.syncId,
+-    );
+-    if (!pending) {
+-      // Legacy local transfers predate the outbox. Queue their current state as CREATE.
+-      await enqueueSyncCommand(tx, {
+-        entityType: 'TRANSFER', entitySyncId: row.syncId, operation: 'CREATE',
+-        payload: transferSyncPayload(row), expectedServerVersion: null,
+-      });
+-      return;
+-    }
+-    await tx.runAsync(
+-      'UPDATE sync_outbox SET payload_json = ? WHERE command_id = ?',
+-      JSON.stringify(transferSyncPayload(row)),
+-      pending.commandId,
+-    );
+-  } else {
+-    await enqueueSyncCommand(tx, {
+-      entityType: 'TRANSFER', entitySyncId: row.syncId, operation: 'UPDATE',
+-      payload: transferSyncPayload(row), expectedServerVersion: row.serverVersion,
+-    });
+-  }
+-}
+-
+ async function readStoredTransfer(database: SQLiteDatabase, syncId: string): Promise<StoredTransfer> {
+   const transfer = await database.getFirstAsync<StoredTransfer>(
+     `SELECT from_account_sync_id AS fromAccountSyncId,
+@@ -229,7 +200,11 @@ export async function updateTransfer(
+     );
+     if (result.changes !== 1) throw new Error('Transfer could not be updated');
+     await applyBalanceChanges(transaction, previous, next);
+-    await queueTransferChange(transaction, await readTransferSyncRow(transaction, syncId));
++    const row = await readTransferSyncRow(transaction, syncId);
++    await queueSyncUpdate(transaction, {
++      entityType: 'TRANSFER', entitySyncId: syncId,
++      serverId: row.serverId, serverVersion: row.serverVersion,
++    }, transferSyncPayload(row));
+   });
+ }
+ 
+@@ -240,17 +215,10 @@ export async function deleteTransfer(database: SQLiteDatabase, syncId: string):
+     const result = await transaction.runAsync('DELETE FROM transfers WHERE sync_id = ?', syncId);
+     if (result.changes !== 1) throw new Error('Transfer could not be deleted');
+     await applyBalanceChanges(transaction, previous, null);
+-    if (row.serverId === null) {
+-      await transaction.runAsync(
+-        `DELETE FROM sync_outbox WHERE entity_type = 'TRANSFER' AND entity_sync_id = ?`,
+-        syncId,
+-      );
+-    } else {
+-      await enqueueSyncCommand(transaction, {
+-        entityType: 'TRANSFER', entitySyncId: syncId, operation: 'DELETE',
+-        payload: { syncId }, expectedServerVersion: row.serverVersion,
+-      });
+-    }
++    await queueSyncDelete(transaction, {
++      entityType: 'TRANSFER', entitySyncId: syncId,
++      serverId: row.serverId, serverVersion: row.serverVersion,
++    });
+   });
+ }
+ 

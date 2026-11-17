@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
+import { useBudgetDownloadRevision } from '@/hooks/use-budget-download-revision';
 import { HomeFilters } from '@/components/home-filters';
 import { PeriodSelector } from '@/components/periods/period-selector';
 import { ScreenBackground } from '@/components/screen-background';
@@ -21,6 +22,7 @@ const ALL_TIME: EntryPeriod = { kind: 'all' };
 
 export default function TransferHistoryScreen() {
   const database = useSQLiteContext();
+  const downloadRevision = useBudgetDownloadRevision();
   const { locale, translations } = useLanguage();
   const dark = useColorScheme() === 'dark';
   const [query, setQuery] = useState<{ period: EntryPeriod; accountIds: string[] }>({
@@ -64,7 +66,8 @@ export default function TransferHistoryScreen() {
       setTransfers([]);
       setStatus('error');
     }
-  }, [database, query]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- An applied download refreshes the focused query.
+  }, [downloadRevision, database, query]);
 
   useFocusEffect(useCallback(() => {
     void loadTransfers();

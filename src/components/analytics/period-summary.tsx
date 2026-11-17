@@ -63,9 +63,9 @@ export function PeriodSummary({ size, currency, income, expenses, loading, faile
   const activeSelection = choices.includes(selected) ? selected : null;
   const visibleSectors = visibleSummarySectors(sectors, activeSelection, splitRing, incomeOnly);
   const shown = rows.find((row) => row.kind === (activeSelection ?? 'savings'))!;
-  const notice = available ? undefined
-    : failed ? translations.loadEntriesError
-      : loading ? translations.loading : translations.conversionUnavailable;
+  const notice = loading ? translations.loading
+    : available ? undefined
+      : failed ? translations.loadEntriesError : translations.conversionUnavailable;
 
   function select(next: SummarySelection | null) {
     if (next === activeSelection) return;
@@ -118,7 +118,7 @@ export function PeriodSummary({ size, currency, income, expenses, loading, faile
         </Svg>
         <ChartCenter
           label={shown.label}
-          amount={amount(shown.value)}
+          amount={loading ? '' : amount(shown.value)}
           textColor={palette.text}
           mutedColor={palette.muted}
           notice={notice}

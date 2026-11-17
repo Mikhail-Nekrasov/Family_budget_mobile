@@ -5,8 +5,8 @@ import { ActivityIndicator, AppState, KeyboardAvoidingView, Platform, ScrollView
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-  closeServerSession, flushPendingRevocations, lockLocalProfile, logIn,
-  profileDatabaseName, readLocalProfile, registerUser, restoreProfile, type AuthUser,
+  closeServerSession, ensureProfileSession, flushPendingRevocations, lockLocalProfile, logIn, openBudgetSession,
+  profileDatabaseName, readLocalProfile, registerUser, type AuthUser,
 } from '@/api/api-auth';
 import { ApiError } from '@/api/api-error';
 import { AppButton } from '@/components/app-button';
@@ -57,6 +57,7 @@ type Auth = {
   needsSignIn: boolean;
   signOut: () => void;
   reauthenticate: () => void;
+  withBudgetSession: <T>(userId: string, work: (headers: Record<string, string>) => Promise<T>) => Promise<T>;
 };
 
 const Context = createContext<Auth | null>(null);
@@ -110,7 +111,7 @@ export function BudgetAuthProvider({ children }: PropsWithChildren) {
           const local = await readLocalProfile();
           if (revision !== generation.current) return;
           if (local?.token) {
-            const user = await restoreProfile();
+            const user = await ensureProfileSession(local.user.userId);
             if (active && revision === generation.current) setNeedsSignIn(!user);
           }
         } catch {
@@ -184,6 +185,33 @@ export function BudgetAuthProvider({ children }: PropsWithChildren) {
     }
   }
 
+  const profileUserId = profile?.user.userId;
+  const withBudgetSession = useCallback(async function withBudgetSession<T>(
+    userId: string,
+    work: (headers: Record<string, string>) => Promise<T>,
+  ): Promise<T> {
+    if (foreground.current || profileUserId !== userId) {
+      throw new Error('Budget profile is busy or has changed');
+    }
+    foreground.current = true;
+    setBusy(true);
+
+    try {
+      await sessionWork.current;
+      const headers = await openBudgetSession(userId);
+      setNeedsSignIn(false);
+      return await work(headers);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        setNeedsSignIn(true);
+      }
+      throw error;
+    } finally {
+      foreground.current = false;
+      setBusy(false);
+    }
+  }, [profileUserId]);
+
   async function signOut() {
     if (foreground.current) return;
     foreground.current = true;
@@ -212,6 +240,7 @@ export function BudgetAuthProvider({ children }: PropsWithChildren) {
   const auth: Auth = {
     text, user: profile?.user ?? null, databaseName: profile?.databaseName ?? null, error, busy, needsSignIn,
     signOut: () => void signOut(),
+    withBudgetSession,
     reauthenticate: () => { setError(null); setReauth(true); },
   };
 
