@@ -24,13 +24,18 @@ const languageNames: Record<Language, string> = {
   en: 'English',
   ru: 'Русский',
   fi: 'Suomi',
+  fr: 'Français',
+  es: 'Español',
+  vi: 'Tiếng Việt',
 };
 
 const refreshLabels = {
   en: 'Refresh from server',
   ru: 'Обновить данные с сервера',
   fi: 'Päivitä tiedot palvelimelta',
-} satisfies Record<Language, string>;
+  fr: 'Actualiser depuis le serveur',
+  es: 'Actualizar desde el servidor',
+ vi: "Cập nhật từ máy chủ" } satisfies Record<Language, string>;
 
 const syncLabels = {
   en: {
@@ -54,7 +59,27 @@ const syncLabels = {
     conflict: 'Synkronointiristiriita. Paikalliset muutokset on tallennettu.',
     retrying: 'Synkronointi keskeytyi. Yritetään uudelleen.', failed: 'Synkronointi pysähtyi. Paikalliset muutokset on tallennettu.',
   },
-} satisfies Record<Language, Record<BudgetSyncPhase, string>>;
+  fr: {
+    waiting: "En attente de synchronisation", offline: "Hors ligne", uploading: "Envoi des modifications locales…",
+    downloading: "Vérification des modifications du serveur…", synced: "À jour",
+    legacy: "Les anciennes données de cet appareil doivent être rapprochées", pending: "Les modifications locales sont en attente",
+    conflict: "Conflit de synchronisation. Les modifications locales sont enregistrées.",
+    retrying: "Synchronisation interrompue. Nouvelle tentative automatique.", failed: "Synchronisation arrêtée. Les modifications locales sont enregistrées.",
+  },
+  es: {
+    waiting: "Esperando sincronización", offline: "Sin conexión", uploading: "Enviando cambios locales…",
+    downloading: "Comprobando cambios del servidor…", synced: "Actualizado",
+    legacy: "Los datos antiguos de este dispositivo necesitan conciliarse", pending: "Los cambios locales están en cola",
+    conflict: "Conflicto de sincronización. Los cambios locales están guardados.",
+    retrying: "Sincronización interrumpida. Se reintentará automáticamente.", failed: "Sincronización detenida. Los cambios locales están guardados.",
+  },
+ vi: {
+    waiting: "Đang chờ đồng bộ", offline: "Ngoại tuyến", uploading: "Đang gửi thay đổi cục bộ…",
+    downloading: "Đang kiểm tra thay đổi trên máy chủ…", synced: "Đã cập nhật",
+    legacy: "Dữ liệu cũ trên thiết bị này cần được đối soát", pending: "Thay đổi cục bộ đang chờ đồng bộ",
+    conflict: "Xung đột đồng bộ. Thay đổi cục bộ đã được lưu.",
+    retrying: "Đồng bộ bị gián đoạn. Đang tự động thử lại.", failed: "Đồng bộ đã dừng. Thay đổi cục bộ đã được lưu.",
+  } } satisfies Record<Language, Record<BudgetSyncPhase, string>>;
 
 export default function SettingsScreen() {
   const router = useRouter();

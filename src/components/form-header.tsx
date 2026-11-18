@@ -17,7 +17,7 @@ export function FormHeader({ title, onBack, disabled }: {
     <SafeAreaView edges={['top']} style={{ backgroundColor: dark ? '#111722' : '#F5F6F9' }}>
       <View style={[styles.header, { borderBottomColor: dark ? '#333F52' : '#E0E5EE' }]}>
       <Pressable accessibilityRole="button"
-        accessibilityLabel={{ en: 'Back', ru: 'Назад', fi: 'Takaisin' }[language]}
+        accessibilityLabel={{ en: 'Back', ru: 'Назад', fi: 'Takaisin', fr: 'Retour', es: 'Atrás' , vi: "Quay lại" }[language]}
         disabled={disabled} onPress={onBack}
         style={({ pressed }) => [styles.button, { opacity: disabled ? 0.4 : pressed ? 0.65 : 1 }]}>
         {nativeGlass

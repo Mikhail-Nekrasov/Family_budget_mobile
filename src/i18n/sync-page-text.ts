@@ -17,4 +17,21 @@ export const syncPageText = {
     resolve: 'Ratkaise', later: 'Myöhemmin', count: 'Ratkaistavia ristiriitoja',
     clear: 'Ratkaistavia ristiriitoja ei ole',
   },
-} as const;
+  fr: {
+    title: "Synchronisation", alertTitle: "Choisissez les modifications à conserver",
+    alertBody: "Certaines données ont été modifiées sur cet appareil et sur le serveur.",
+    resolve: "Résoudre", later: "Plus tard", count: "Conflits à résoudre",
+    clear: "Aucun conflit à résoudre",
+  },
+  es: {
+    title: "Sincronización", alertTitle: "Elige qué cambios conservar",
+    alertBody: "Algunos datos han cambiado tanto en este dispositivo como en el servidor.",
+    resolve: "Resolver", later: "Más tarde", count: "Conflictos por resolver",
+    clear: "No hay conflictos que requieran una decisión",
+  },
+ vi: {
+    title: "Đồng bộ hóa", alertTitle: "Chọn thay đổi cần giữ lại",
+    alertBody: "Một số dữ liệu đã thay đổi cả trên thiết bị này và trên máy chủ.",
+    resolve: "Giải quyết", later: "Để sau", count: "Xung đột cần giải quyết",
+    clear: "Không có xung đột cần giải quyết",
+  } } as const;

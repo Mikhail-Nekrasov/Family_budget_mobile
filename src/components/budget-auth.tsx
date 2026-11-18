@@ -44,7 +44,36 @@ const messages = {
     web: 'Kirjaudu Family Budget -sovellukseen iOS- tai Android-laitteella.',
     storageError: 'Paikallista budjettia ei voitu avata.',
   },
-};
+  fr: {
+    signIn: "Se connecter", signOut: "Se déconnecter", register: "Créer un compte", username: "Nom d’utilisateur",
+    password: "Mot de passe", confirm: "Confirmer le mot de passe", retry: "Réessayer", cancel: "Annuler",
+    signedInAs: "Connecté en tant que", signInAgain: "Reconnectez-vous pour rétablir la connexion", offline: "Connectez-vous à Internet pour vous identifier.",
+    failed: "Impossible de terminer la demande. Réessayez.", credentials: "Nom d’utilisateur ou mot de passe incorrect.",
+    mismatch: "Les mots de passe ne correspondent pas.", registered: "Compte créé. Connectez-vous pour continuer.",
+    sameProfile: "Connectez-vous avec votre nom d’utilisateur actuel ou déconnectez-vous pour changer de compte.",
+    web: "Ouvrez Family Budget sur iOS ou Android pour vous connecter.",
+    storageError: "Impossible d’ouvrir le budget local.",
+  },
+  es: {
+    signIn: "Iniciar sesión", signOut: "Cerrar sesión", register: "Crear una cuenta", username: "Nombre de usuario",
+    password: "Contraseña", confirm: "Confirmar contraseña", retry: "Reintentar", cancel: "Cancelar",
+    signedInAs: "Sesión iniciada como", signInAgain: "Vuelve a iniciar sesión para reconectar", offline: "Conéctate a internet para iniciar sesión.",
+    failed: "No se pudo completar la solicitud. Inténtalo de nuevo.", credentials: "Nombre de usuario o contraseña incorrectos.",
+    mismatch: "Las contraseñas no coinciden.", registered: "Cuenta creada. Inicia sesión para continuar.",
+    sameProfile: "Inicia sesión con tu usuario actual o cierra sesión para cambiar de cuenta.",
+    web: "Abre Family Budget en iOS o Android para iniciar sesión.",
+    storageError: "No se pudo abrir el presupuesto local.",
+  },
+ vi: {
+    signIn: "Đăng nhập", signOut: "Đăng xuất", register: "Tạo tài khoản", username: "Tên người dùng",
+    password: "Mật khẩu", confirm: "Xác nhận mật khẩu", retry: "Thử lại", cancel: "Hủy",
+    signedInAs: "Đã đăng nhập với tên", signInAgain: "Đăng nhập lại để kết nối", offline: "Hãy kết nối internet để đăng nhập.",
+    failed: "Không thể hoàn tất yêu cầu. Hãy thử lại.", credentials: "Tên người dùng hoặc mật khẩu không đúng.",
+    mismatch: "Mật khẩu không khớp.", registered: "Đã tạo tài khoản. Đăng nhập để tiếp tục.",
+    sameProfile: "Đăng nhập bằng tên người dùng hiện tại hoặc đăng xuất để đổi tài khoản.",
+    web: "Mở Family Budget trên iOS hoặc Android để đăng nhập.",
+    storageError: "Không thể mở ngân sách cục bộ.",
+  } };
 
 type Texts = typeof messages.en;
 type Profile = { user: AuthUser; databaseName: string };

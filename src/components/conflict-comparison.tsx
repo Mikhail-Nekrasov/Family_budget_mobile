@@ -11,7 +11,12 @@ const labels = {
     chooseServer: 'Серверная', choose: 'Выберите версию', failed: 'Не удалось сохранить выбор. Попробуйте ещё раз.' },
   fi: { local: 'Tällä laitteella', server: 'Palvelimella', chooseLocal: 'Paikallinen versio',
     chooseServer: 'Palvelimen versio', choose: 'Valitse käytettävä versio', failed: 'Valintaa ei voitu tallentaa. Yritä uudelleen.' },
-};
+  fr: { local: "Sur cet appareil", server: "Sur le serveur", chooseLocal: "Version locale",
+    chooseServer: "Version du serveur", choose: "Choisissez la version à appliquer", failed: "Impossible d’enregistrer votre choix. Réessayez." },
+  es: { local: "En este dispositivo", server: "En el servidor", chooseLocal: "Versión local",
+    chooseServer: "Versión del servidor", choose: "Elige la versión que quieres aplicar", failed: "No se pudo guardar tu elección. Inténtalo de nuevo." },
+ vi: { local: "Trên thiết bị này", server: "Trên máy chủ", chooseLocal: "Bản cục bộ",
+    chooseServer: "Bản máy chủ", choose: "Chọn phiên bản cần áp dụng", failed: "Không thể lưu lựa chọn. Hãy thử lại." } };
 
 export type ConflictComparisonRow = { label: string; local: ReactNode; server: ReactNode };
 

@@ -14,7 +14,15 @@ const labels = {
   fi: { account: 'Tilien järjestys', EXPENSE: 'Menoluokkien järjestys', INCOME: 'Tuloluokkien järjestys',
     color: 'Kuvakkeen väri', hidden: 'Tilin näkyvyys', icon: 'Luokan kuvake', local: 'Tämä laite',
     server: 'Palvelin', none: 'Ei väriä', yes: 'Piilotettu', no: 'Näkyvissä', error: 'Valintaa ei voitu tallentaa.' },
-} as const;
+  fr: { account: "Ordre des comptes", EXPENSE: "Ordre des catégories de dépenses", INCOME: "Ordre des catégories de revenus",
+    color: "Couleur de l’icône", hidden: "Visibilité du compte", icon: "Icône de catégorie", local: "Cet appareil",
+    server: "Serveur", none: "Sans couleur", yes: "Masqué", no: "Visible", error: "Impossible d’enregistrer votre choix." },
+  es: { account: "Orden de las cuentas", EXPENSE: "Orden de las categorías de gastos", INCOME: "Orden de las categorías de ingresos",
+    color: "Color del icono", hidden: "Visibilidad de la cuenta", icon: "Icono de categoría", local: "Este dispositivo",
+    server: "Servidor", none: "Sin color", yes: "Oculta", no: "Visible", error: "No se pudo guardar tu elección." },
+ vi: { account: "Thứ tự tài khoản", EXPENSE: "Thứ tự danh mục chi tiêu", INCOME: "Thứ tự danh mục thu nhập",
+    color: "Màu biểu tượng", hidden: "Hiển thị tài khoản", icon: "Biểu tượng danh mục", local: "Thiết bị này",
+    server: "Máy chủ", none: "Không có màu", yes: "Đã ẩn", no: "Đang hiển thị", error: "Không thể lưu lựa chọn." } } as const;
 
 export function PreferenceConflictComparison({ conflict, color, onResolve }: {
   conflict: PreferenceConflict;
@@ -27,7 +35,9 @@ export function PreferenceConflictComparison({ conflict, color, onResolve }: {
     en: { account: 'Account', category: 'Category' },
     ru: { account: 'Счёт', category: 'Категория' },
     fi: { account: 'Tili', category: 'Luokka' },
-  }[language];
+    fr: { account: "Compte", category: "Catégorie" },
+  es: { account: "Cuenta", category: "Categoría" },
+ vi: { account: "Tài khoản", category: "Danh mục" } }[language];
   const parts = conflict.key.split(':');
   const kind = (parts[0] === 'order' ? parts[1] : parts[2]) as
     'account' | 'EXPENSE' | 'INCOME' | 'color' | 'hidden' | 'icon';

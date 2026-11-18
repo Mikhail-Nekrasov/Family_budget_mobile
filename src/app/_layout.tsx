@@ -14,6 +14,7 @@ import { ScreenBackground } from '@/components/screen-background';
 import { StartupLayout } from '@/components/startup-layout';
 import { initializeDatabase } from '@/database/initialize-database';
 import { useLanguage } from '@/hooks/use-language';
+import { DrawerIcon } from '@/components/icons/drawer-icon';
 import { LanguageProvider } from '@/i18n/language-provider';
 
 SplashScreen.preventAutoHideAsync();
@@ -72,11 +73,20 @@ function AppNavigation() {
       value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
     >
       <StartupLayout>
-        <Drawer>
+        <Drawer
+          screenOptions={{
+            drawerLabelStyle: { fontSize: 18, fontWeight: '500' },
+            drawerItemStyle: { minHeight: 56, borderRadius: 14, marginHorizontal: 12, marginVertical: 4 },
+            drawerActiveTintColor: colorScheme === 'dark' ? '#A9BAFF' : '#365CB8',
+            drawerInactiveTintColor: colorScheme === 'dark' ? '#DFE6F8' : '#273142',
+            drawerActiveBackgroundColor: colorScheme === 'dark' ? '#26334C' : '#E7EDFC',
+          }}
+        >
           <Drawer.Screen
             name="index"
             options={{
               drawerLabel: translations.home,
+              drawerIcon: ({ color }) => <DrawerIcon name="home" color={color} />,
               title: translations.home,
               headerShown: false,
               lazy: false,
@@ -87,6 +97,7 @@ function AppNavigation() {
             name="accounts"
             options={{
               drawerLabel: translations.accounts,
+              drawerIcon: ({ color }) => <DrawerIcon name="accounts" color={color} />,
               title: translations.accounts,
               headerShown: false,
               lazy: false,
@@ -97,6 +108,7 @@ function AppNavigation() {
             name="categories"
             options={{
               drawerLabel: translations.categories,
+              drawerIcon: ({ color }) => <DrawerIcon name="categories" color={color} />,
               title: translations.categories,
               headerShown: false,
               lazy: false,
@@ -107,6 +119,7 @@ function AppNavigation() {
             name="exchange-rates"
             options={{
               drawerLabel: translations.exchangeRates,
+              drawerIcon: ({ color }) => <DrawerIcon name="exchange" color={color} />,
               title: translations.exchangeRates,
               headerShown: false,
               lazy: false,
@@ -117,6 +130,7 @@ function AppNavigation() {
             name="analytics"
             options={{
               drawerLabel: translations.analytics,
+              drawerIcon: ({ color }) => <DrawerIcon name="analytics" color={color} />,
               title: translations.analytics,
               headerShown: false,
             }}
@@ -126,6 +140,7 @@ function AppNavigation() {
             name="settings"
             options={{
               drawerLabel: translations.settings,
+              drawerIcon: ({ color }) => <DrawerIcon name="settings" color={color} />,
               title: translations.settings,
               headerShown: false,
               lazy: false,

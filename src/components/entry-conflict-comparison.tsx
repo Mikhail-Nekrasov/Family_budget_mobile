@@ -31,7 +31,30 @@ const labels = {
     failed: 'Ristiriitaa ei voitu ratkaista. Paikalliset muutokset on tallennettu.',
     title: 'Otsikko', amountMinor: 'Summa', dateTime: 'Päivä', description: 'Huomautus', accountSyncId: 'Tili', categorySyncId: 'Luokka',
   },
-};
+  fr: {
+    local: "Sur cet appareil", server: "Sur le serveur", unknown: "Auteur inconnu", changed: "Modifié",
+    missingBase: "La version d’origine est indisponible. Les différences sont affichées sans être attribuées à l’une des modifications.",
+    keepLocal: "Appliquer ma version", keepServer: "Conserver la version du serveur",
+    deleted: "Supprimé sur cet appareil", remoteDeleted: "Supprimé sur le serveur", copy: "Créer une opération à partir de ma version", keepDeletion: "Confirmer la suppression", restore: "Restaurer la version du serveur",
+    failed: "Impossible de résoudre ce conflit. Les modifications locales sont enregistrées.",
+    title: "Titre", amountMinor: "Montant", dateTime: "Date", description: "Note", accountSyncId: "Compte", categorySyncId: "Catégorie",
+  },
+  es: {
+    local: "En este dispositivo", server: "En el servidor", unknown: "Autor desconocido", changed: "Modificado",
+    missingBase: "La versión original no está disponible. Las diferencias se muestran sin atribuirlas a ninguna de las modificaciones.",
+    keepLocal: "Aplicar mi versión", keepServer: "Conservar versión del servidor",
+    deleted: "Eliminado en este dispositivo", remoteDeleted: "Eliminado en el servidor", copy: "Crear una operación a partir de mi versión", keepDeletion: "Confirmar eliminación", restore: "Restaurar versión del servidor",
+    failed: "No se pudo resolver este conflicto. Los cambios locales están guardados.",
+    title: "Título", amountMinor: "Importe", dateTime: "Fecha", description: "Nota", accountSyncId: "Cuenta", categorySyncId: "Categoría",
+  },
+ vi: {
+    local: "Trên thiết bị này", server: "Trên máy chủ", unknown: "Không rõ người chỉnh sửa", changed: "Đã thay đổi",
+    missingBase: "Không có phiên bản gốc. Các khác biệt được hiển thị mà không xác định thuộc về lần chỉnh sửa nào.",
+    keepLocal: "Áp dụng bản của tôi", keepServer: "Giữ bản máy chủ",
+    deleted: "Đã xóa trên thiết bị này", remoteDeleted: "Đã xóa trên máy chủ", copy: "Tạo giao dịch mới từ bản của tôi", keepDeletion: "Xác nhận xóa", restore: "Khôi phục bản máy chủ",
+    failed: "Không thể giải quyết xung đột này. Thay đổi cục bộ đã được lưu.",
+    title: "Tên giao dịch", amountMinor: "Số tiền", dateTime: "Ngày", description: "Ghi chú", accountSyncId: "Tài khoản", categorySyncId: "Danh mục",
+  } };
 
 const fields = ['title', 'amountMinor', 'dateTime', 'description', 'accountSyncId', 'categorySyncId'] as const;
 
@@ -78,8 +101,8 @@ export function EntryConflictComparison({
   return (
     <View style={{ gap: 12 }}>
       <ConflictComparison language={language} color={color} title={`${local.type === 'EXPENSE'
-          ? { en: 'Expense', ru: 'Расход', fi: 'Meno' }[language]
-          : { en: 'Income', ru: 'Доход', fi: 'Tulo' }[language]} · ${local.title} · ${dates}`}
+          ? { en: 'Expense', ru: 'Расход', fi: 'Meno' , fr: "Dépense", es: "Gasto" , vi: "Khoản chi" }[language]
+          : { en: 'Income', ru: 'Доход', fi: 'Tulo' , fr: "Revenus", es: "Ingresos" , vi: "Thu nhập" }[language]} · ${local.title} · ${dates}`}
         localInfo={`${username}${localDeleted ? ` · ${text.deleted}` : ''}`}
         serverInfo={server ? server.editor ?? text.unknown : text.remoteDeleted}
         rows={different.map((field) => ({

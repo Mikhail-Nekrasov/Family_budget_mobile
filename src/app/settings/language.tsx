@@ -28,6 +28,9 @@ const languageOptions: {
     code: 'fi',
     label: 'Suomi',
   },
+  { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
+  { code: 'vi', label: 'Tiếng Việt' },
 ];
 
 export default function LanguageScreen() {

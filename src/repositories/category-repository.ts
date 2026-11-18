@@ -45,7 +45,7 @@ function fromRow(row: CategoryRow): Category {
   const parsed: unknown = JSON.parse(row.nameOverridesJson);
   const nameOverrides: Category['nameOverrides'] = {};
   if (parsed !== null && typeof parsed === 'object') {
-    for (const language of ['en', 'ru', 'fi'] as const) {
+    for (const language of ['en', 'ru', 'fi', 'fr', 'es', 'vi'] as const) {
       const name = (parsed as Record<string, unknown>)[language];
       if (typeof name === 'string' && name.trim() !== '') {
         nameOverrides[language] = name;
@@ -153,7 +153,7 @@ export async function updateCategory(
     throw new Error('Invalid category icon color');
   }
 
-  if (!['en', 'ru', 'fi'].includes(input.language)) {
+  if (!['en', 'ru', 'fi', 'fr', 'es', 'vi'].includes(input.language)) {
     throw new Error('Unsupported category name language');
   }
 

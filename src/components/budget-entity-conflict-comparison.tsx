@@ -36,7 +36,33 @@ const labels = {
     target_amount_minor: 'Vastaanotettu', date_time: 'Päivä',
     from_account_sync_id: 'Lähtötili', to_account_sync_id: 'Kohdetili',
   },
-};
+  fr: {
+    ACCOUNT: "Compte", CATEGORY: "Catégorie", TRANSFER: "Virement", local: "Sur cet appareil", server: "Sur le serveur",
+    keepLocal: "Réessayer mes modifications", keepServer: "Utiliser la version du serveur", absent: "Supprimé", archived: "Archivé", active: "Actif",
+    failed: "Impossible d’appliquer ce choix. Vos modifications en attente sont conservées.",
+    linked: "D’autres opérations ou virements locaux utilisent encore cet élément. Déplacez-les d’abord vers un autre compte ou une autre catégorie.",
+    icon_key: "Icône", name: "Nom", description: "Note", archived_at: "État", amount_minor: "Montant envoyé",
+    target_amount_minor: "Montant reçu", date_time: "Date",
+    from_account_sync_id: "Compte de départ", to_account_sync_id: "Compte destinataire",
+  },
+  es: {
+    ACCOUNT: "Cuenta", CATEGORY: "Categoría", TRANSFER: "Transferencia", local: "En este dispositivo", server: "En el servidor",
+    keepLocal: "Reintentar mis cambios", keepServer: "Usar versión del servidor", absent: "Eliminado", archived: "Archivada", active: "Activo",
+    failed: "No se pudo aplicar esta elección. Tus cambios en cola se conservan.",
+    linked: "Otras operaciones o transferencias locales siguen usando este elemento. Muévelas primero a otra cuenta o categoría.",
+    icon_key: "Icono", name: "Nombre", description: "Nota", archived_at: "Estado", amount_minor: "Importe enviado",
+    target_amount_minor: "Importe recibido", date_time: "Fecha",
+    from_account_sync_id: "Cuenta de origen", to_account_sync_id: "Cuenta de destino",
+  },
+ vi: {
+    ACCOUNT: "Tài khoản", CATEGORY: "Danh mục", TRANSFER: "Chuyển tiền", local: "Trên thiết bị này", server: "Trên máy chủ",
+    keepLocal: "Thử lại thay đổi của tôi", keepServer: "Dùng bản máy chủ", absent: "Đã xóa", archived: "Đã lưu trữ", active: "Đang hoạt động",
+    failed: "Không thể áp dụng lựa chọn này. Các thay đổi đang chờ vẫn được giữ lại.",
+    linked: "Các giao dịch hoặc chuyển tiền cục bộ khác vẫn đang dùng mục này. Hãy chuyển chúng sang tài khoản hoặc danh mục khác trước.",
+    icon_key: "Biểu tượng", name: "Tên", description: "Ghi chú", archived_at: "Trạng thái", amount_minor: "Số tiền gửi",
+    target_amount_minor: "Số tiền nhận", date_time: "Ngày",
+    from_account_sync_id: "Tài khoản nguồn", to_account_sync_id: "Tài khoản nhận",
+  } };
 const fields = {
   ACCOUNT: ['name', 'description', 'icon_key', 'archived_at'],
   CATEGORY: ['name'],

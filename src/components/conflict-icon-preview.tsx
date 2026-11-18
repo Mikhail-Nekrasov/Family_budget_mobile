@@ -16,7 +16,7 @@ export function ConflictIconPreview({ kind, iconKey, iconColor, color }: {
     ? translations.accountIcons[iconKey as keyof typeof translations.accountIcons] : iconKey;
   const name = kind === 'account' ? accountName ?? ''
     : custom?.label[language] ?? (standard ? translations.defaultCategories[standard.key] : iconKey ?? '');
-  const none = { en: 'No color', ru: 'Без цвета', fi: 'Ei väriä' }[language];
+  const none = { en: 'No color', ru: 'Без цвета', fi: 'Ei väriä' , fr: "Sans couleur", es: "Sin color" , vi: "Không có màu" }[language];
   return (
     <View style={{ gap: 8 }}>
       {iconKey ? <IconBadge kind={kind} iconKey={iconKey} color={iconColor ?? null} /> : (
