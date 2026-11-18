@@ -3,6 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } 
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
+import { FormHeader } from '@/components/form-header';
 import { ScreenBackground } from '@/components/screen-background';
 import { CURRENCY_CODES, CURRENCY_SYMBOLS, type CurrencyCode } from '@/constants/currencies';
 import { useLanguage } from '@/hooks/use-language';
@@ -40,9 +41,9 @@ export function CurrencyPickerButton({ label, currency, onCurrencyChange }: Prop
         {visible && (
           <SafeAreaProvider style={[styles.screen, { backgroundColor: palette.background }]}>
             <ScreenBackground>
-              <SafeAreaView style={styles.screen}>
+              <FormHeader title={label} onBack={() => setVisible(false)} disabled={false} />
+              <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.screen}>
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                  <Text style={[styles.title, { color: palette.text }]}>{label}</Text>
                   {CURRENCY_CODES.map((code) => (
                     <Pressable
                       key={code}
@@ -87,7 +88,6 @@ export function CurrencyPickerButton({ label, currency, onCurrencyChange }: Prop
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: 20, gap: 12 },
-  title: { fontSize: 24, fontWeight: '600', marginBottom: 8 },
   option: {
     flexDirection: 'row',
     alignItems: 'center',

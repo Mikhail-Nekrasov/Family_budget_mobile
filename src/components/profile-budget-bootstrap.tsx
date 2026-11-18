@@ -34,7 +34,24 @@ const messages = {
     failed: 'Budjettia ei voitu ladata. Yritä uudelleen.',
     shared: 'Tämä versio ei voi ladata budjettia, jossa on jaettuja tilejä.',
   },
-};
+  fr: {
+    loading: "Chargement de votre budget…",
+    offline: "Connectez-vous à Internet pour charger votre budget sur cet appareil.",
+    failed: "Impossible de charger votre budget. Réessayez.",
+    shared: "Cette version ne peut pas charger un budget contenant des comptes partagés.",
+  },
+  es: {
+    loading: "Cargando tu presupuesto…",
+    offline: "Conéctate a internet para cargar tu presupuesto en este dispositivo.",
+    failed: "No se pudo cargar tu presupuesto. Inténtalo de nuevo.",
+    shared: "Esta versión no puede cargar un presupuesto con cuentas compartidas.",
+  },
+ vi: {
+    loading: "Đang tải ngân sách…",
+    offline: "Hãy kết nối internet để tải ngân sách xuống thiết bị này.",
+    failed: "Không thể tải ngân sách. Hãy thử lại.",
+    shared: "Phiên bản này không thể tải ngân sách có tài khoản dùng chung.",
+  } };
 
 export function ProfileBudgetBootstrap({ children }: PropsWithChildren) {
   const database = useSQLiteContext();
