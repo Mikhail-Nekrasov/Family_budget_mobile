@@ -1,21 +1,52 @@
-The MIT License (MIT)
+Family Budget Mobile — Proprietary License
 
-Copyright (c) 2015-present 650 Industries, Inc. (aka Expo)
+Copyright (c) 2026 Mikhail Nekrasov. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. Scope and ownership
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This notice applies to the original source code, documentation, and other
+materials in this repository to the extent that their intellectual
+property rights belong to Mikhail Nekrasov.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Third-party components and materials are excluded and remain subject to
+their respective licenses and notices.
+
+2. Source code availability
+
+The source code is made publicly available for inspection, academic
+assessment, and portfolio review. Public availability does not make
+this project open-source or grant permission to reuse its code.
+
+Except as permitted by applicable law, the terms of the hosting
+platform, or a separate written agreement with the copyright holder,
+you may not copy, modify, redistribute, sublicense, sell, or use the
+covered materials to create or distribute another application or service.
+
+No trademark rights are granted.
+
+3. Distributed application
+
+Authorized copies of the compiled application distributed through the
+Apple App Store or another authorized channel are governed by the
+end-user license agreement applicable to that distribution.
+
+This repository license does not prevent lawful use of those copies
+under that agreement.
+
+4. Previously licensed versions
+
+This notice does not revoke permissions validly granted under licenses
+applicable to earlier versions, or override third-party license terms.
+
+5. Disclaimer
+
+To the extent permitted by applicable law, the repository materials are
+provided "AS IS", without warranties of any kind. Nothing in this notice
+excludes or limits rights or liabilities that cannot lawfully be
+excluded or limited.
+
+6. Additional permissions
+
+For permission to use the covered materials beyond these terms,
+contact Mikhail Nekrasov through the contact information published
+on the repository owner's GitHub profile.

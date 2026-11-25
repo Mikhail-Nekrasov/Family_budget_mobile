@@ -364,7 +364,8 @@ function AuthScreen({ boot, retry, fixedUsername, cancel, submit }: {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 14 },
+  // Keep the form anchored when the keyboard changes the available height.
+  content: { flexGrow: 1, justifyContent: 'flex-start', padding: 24, paddingTop: 48, gap: 14 },
   title: { fontSize: 28, fontWeight: '700' },
   input: { minHeight: 52, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1 },
 });
