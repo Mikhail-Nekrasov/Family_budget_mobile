@@ -107,11 +107,6 @@ export const fi: Messages = {
   newExpense: 'Uusi meno',
   newIncome: 'Uusi tulo',
 
-  createEntryPlaceholder: 'Tapahtuman luontilomake ei ole vielä käytettävissä',
-
-  editEntryPlaceholder: (id: string) =>
-    `Tapahtuma ${id}. Muokkauslomake ei ole vielä käytettävissä`,
-
   openEntry: (title: string) =>
     `Avaa tapahtuma: ${title}`,
 

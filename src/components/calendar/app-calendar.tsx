@@ -77,8 +77,7 @@ export function AppCalendar({
         translations.entryDateInvalid(MIN_PERIOD_YEAR),
       );
 
-      // Восстанавливаем последнюю принятую дату,
-      // если системный календарь пропустил недопустимую.
+      // Restore the last accepted date if the native picker accepts an invalid one
       setRevision((current) => current + 1);
       return;
     }

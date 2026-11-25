@@ -162,3 +162,15 @@ The synchronization regression tests cover entity conflicts, retries, restoratio
 
 The original Family Budget Mobile code is proprietary and is not offered under an open-source license.
 Third-party dependencies remain subject to their respective licenses.
+
+## Use of Artificial Intelligence
+
+ChatGPT was used throughout the development of this project, including: 
+- discussing architecture and synchronization rules, 
+- reviewing code,
+- preparing automated tests,
+- troubleshooting build issues, 
+- drafting translations,
+- creating visual assets. 
+I defined the requirements, evaluated proposed solutions, applied and revised changes, and tested the application on a physical iPhone and an iOS simulator.
+I am responsible for the submitted project and its behavior.

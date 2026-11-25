@@ -8,7 +8,7 @@ type DrawerIconProps = {
   color: ColorValue | null;
 };
 
-/** Shared outline weight, including the approved light-outline category cart. */
+/** Drawer icons share a consistent outline style. */
 export function DrawerIcon({ name, color: tint }: DrawerIconProps) {
   const color = tint ?? '#273142';
   return (

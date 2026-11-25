@@ -107,11 +107,6 @@ export const fr: Messages = {
   newExpense: "Nouvelle dépense",
   newIncome: "Nouveau revenu",
 
-  createEntryPlaceholder: "Le formulaire d’opération n’est pas encore disponible",
-
-  editEntryPlaceholder: (id: string) =>
-    `Opération ${id}. Le formulaire de modification n’est pas encore disponible`,
-
   openEntry: (title: string) =>
     `Ouvrir l’opération : ${title}`,
 

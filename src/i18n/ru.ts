@@ -107,11 +107,6 @@ export const ru: Messages = {
   newExpense: 'Новый расход',
   newIncome: 'Новый доход',
 
-  createEntryPlaceholder: 'Форма создания операции пока недоступна',
-
-  editEntryPlaceholder: (id: string) =>
-    `Операция ${id}. Форма редактирования пока недоступна`,
-
   openEntry: (title: string) =>
     `Открыть операцию: ${title}`,
 

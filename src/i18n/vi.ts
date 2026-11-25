@@ -107,11 +107,6 @@ export const vi: Messages = {
   newExpense: "Khoản chi mới",
   newIncome: "Khoản thu mới",
 
-  createEntryPlaceholder: "Biểu mẫu giao dịch chưa khả dụng",
-
-  editEntryPlaceholder: (id: string) =>
-    `Giao dịch ${id}. Biểu mẫu chỉnh sửa chưa khả dụng`,
-
   openEntry: (title: string) =>
     `Mở giao dịch: ${title}`,
 

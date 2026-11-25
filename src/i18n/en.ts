@@ -105,11 +105,6 @@ export const en = {
   newExpense: 'New expense',
   newIncome: 'New income',
 
-  createEntryPlaceholder: 'The entry form is not available yet',
-
-  editEntryPlaceholder: (id: string) =>
-    `Entry ${id}. The editing form is not available yet`,
-
   openEntry: (title: string) =>
     `Open entry: ${title}`,
 

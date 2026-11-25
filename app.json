@@ -29,12 +29,29 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#F5F6F9",
+          "image": "./assets/images/panda-app-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#111722"
+          },
+          "ios": {
+            "image": "./assets/images/panda-native-splash.png",
+            "backgroundColor": "#F5F6F9",
+            "resizeMode": "cover",
+            "enableFullScreenImage_legacy": true,
+            "dark": {
+              "image": "./assets/images/panda-native-splash-dark.png",
+              "backgroundColor": "#111722"
+            }
+          }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
