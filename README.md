@@ -18,11 +18,15 @@ This repository contains the mobile client. The separately maintained [Family Bu
 
 ## Project status
 
-Active development. Personal budgets support offline use and synchronization between devices signed in to the same account. Accounts, categories, income, expenses, transfers, pending changes, and synchronization conflicts are persisted in a per-user SQLite database on the device.
+The project was completed for the Mobile Programming course at **Commit 34**. This commit marks the course submission; subsequent commits represent continued development beyond the course requirements.
 
-An internet connection is required for registration, initial sign-in, and loading a budget onto a new device. After a successful sign-in and initialization, the saved local profile can be used offline. Synchronization resumes when connectivity and a valid server session are available. Signing out requires an online sign-in before the profile can be opened again.
+The current version is a functional prototype tested on a physical iPhone and an iOS simulator. Further development will focus on:
 
-Shared family accounts and collaboration between different users are not implemented yet. The current cross-device functionality applies to a single user's personal budget.
+- Improving synchronization reliability and expanding automated tests for concurrent changes across devices.
+- Introducing groups that allow multiple users to manage shared financial accounts, with appropriate access controls.
+- Adding Sign in with Apple.
+- Refining the user interface, accessibility, and overall user experience.
+- Preparing the application for a public release on the App Store.
 
 ## Features
 
