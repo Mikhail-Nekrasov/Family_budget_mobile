@@ -18,7 +18,7 @@ This repository contains the mobile client. The separately maintained [Family Bu
 
 ## Project status
 
-The project was completed for the Mobile Programming course at **Commit 34**. This commit marks the course submission; subsequent commits represent continued development beyond the course requirements.
+The project was completed for the Mobile Programming course at **Commit 35**. This commit marks the course submission; subsequent commits represent continued development beyond the course requirements.
 
 The current version is a functional prototype tested on a physical iPhone and an iOS simulator. Further development will focus on:
 
@@ -175,6 +175,9 @@ ChatGPT was used throughout the development of this project, including:
 - preparing automated tests,
 - troubleshooting build issues, 
 - drafting translations,
-- creating visual assets. 
-I defined the requirements, evaluated proposed solutions, applied and revised changes, and tested the application on a physical iPhone and an iOS simulator.
-I am responsible for the submitted project and its behavior.
+- creating visual assets.
+
+As the author of this project, I defined the requirements, evaluated AI-generated suggestions, applied and revised changes, and tested the application on a physical iPhone and an iOS simulator. I take responsibility for the submitted project and its behavior.
+
+Copyright (c) 2026 Mikhail Nekrasov. All rights reserved.
+See [LICENSE](./LICENSE) for terms of use.
